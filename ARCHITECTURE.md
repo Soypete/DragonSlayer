@@ -213,6 +213,68 @@ is a vim novice learning the operator grammar for the first time.
   - Save: `save.vim?: VimProgress` (optional — old saves lack it; reducers
     already spread unknown fields through).
 
+### Quest pledges → Claude skills (planned, build after sword-school)
+
+Selecting a quest on the Guild Board "pledges" it, and the game forges a Claude
+Code skill into the TARGET repo so the player's normal coding sessions know
+about the quest:
+
+- **QuestsScreen becomes selectable** (also fixes the read-only-board confusion):
+  ↑↓/jk choose, `enter` pledges (or renounces) a quest. Pledged quests show a
+  sigil and float to the top; the map header shows the active pledge as a
+  standing reminder, re-shown after every forge while incomplete.
+- **`src/ai/squire.ts`** — `forgeSkill(quest, scan, cfg, dragons): Promise<{ path, source }>`:
+  writes `<targetRepo>/.claude/skills/gme-<quest-slug>/SKILL.md` with proper
+  frontmatter (name, description) and a body containing: the quest objective,
+  current real state (file's uncovered lines / coverage %, test file locations,
+  the repo's test + coverage commands), and concrete guidance for completing it
+  (e.g. "write vitest tests for these uncovered functions; run <coverageCommand>;
+  the quest completes on the next forge"). Content tailored via `claude -p`
+  (same pattern as oracle.ts: timeout + silent fallback to a deterministic
+  template that is already genuinely useful). Never overwrites a SKILL.md it
+  didn't generate (marker comment in the file). Renouncing a pledge removes the
+  generated skill dir.
+- **Save**: `pledges: string[]` (quest ids) — optional field on SaveGame like
+  `vim`, spread-safe for old saves.
+
+### The Daily Augury (planned, build with pledges)
+
+The Oracle's Cave grants ONE true consultation per real calendar day:
+
+- **Judgment is deterministic** from real metric deltas since the last augury
+  (total coverage trend, dragons slain, test-file count, pledge honored?):
+  improvement → blessing, decay → curse, first visit → neutral omen. The save
+  stores `augury?: { date: 'YYYY-MM-DD'; kind: 'blessing'|'curse'|'omen'; edict: string; honored?: boolean }`.
+  Same-day revisits show the standing edict ("the cave is silent until tomorrow").
+- **Edicts are agent style law**: each augury carries a concrete coding-style
+  mandate (curse example: "no code without a failing test first; every mock must
+  justify itself"; blessing example: "prefer table-driven tests named for the
+  behavior they guard"). Flavor + edict via `claude -p` with deterministic
+  template fallback (oracle.ts pattern).
+- **Harness integration**: the edict is written into a marker-fenced managed
+  block (`<!-- gme:oracle-edict:start -->` … `:end`) in the target repo's
+  `CLAUDE.md` (Claude Code) and `AGENTS.md` (opencode, pi). REPLACE only the
+  fenced block; create the file with just the block if absent; never touch
+  content outside the markers. Removing the augury (new day) rewrites the block.
+- **Stakes**: blessings grant a small same-day XP multiplier; a curse honored by
+  the next augury (its metric improved while it stood) pays redemption XP.
+
+### The Guild Shop (planned, build with pledges/augury)
+
+Gold's sinks — XP is leveling (rank thresholds), gold buys consumables:
+
+- **Forge a Claude skill — 25 gold**: the pledge system's SKILL.md generation is
+  a purchase (pledging itself is free). You buy *Claude skills* with gold.
+- **Hint rungs — 5 gold** each, rungs 2–3 of the vim-trial hint ladder (already spec'd).
+- **Oracle's token — 50 gold**: one extra augury today, bypassing the daily gate.
+- **Sharpening stone — 30 gold**: a 1.2× blade buff for the next battle without
+  earning it in the sword-school.
+
+Shop screen reachable from the map (`s`); purchases persist via the save;
+insufficient gold shows the price grayed with a "the guild extends no credit"
+line. Economy tuning baseline: battles pay ~damage/10 gold (≈10/battle at the
+playtester's pace), kills +50.
+
 ## Build order
 
 1. Contracts (done): types.ts, tsconfig, package.json.

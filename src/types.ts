@@ -205,6 +205,10 @@ export interface SaveGame {
   stats: PlayerStats;
   /** Sword-school progress; absent on saves from before the vim trials existed. */
   vim?: VimProgress;
+  /** Pledged quest ids (Guild Board pledges). */
+  pledges?: string[];
+  /** Standing daily augury, if consulted. */
+  augury?: Augury;
   lastScan?: {
     coveragePct: number;
     timestamp: number;
@@ -296,6 +300,33 @@ export interface VimProgress {
   /** Active sharpened-blade buff; consumed by the next battle, 1 = none. */
   bladeBuff: number;
 }
+
+// ── Pledges, augury, and the guild shop ──────────────────────────────────────
+
+export type AuguryKind = 'blessing' | 'curse' | 'omen';
+
+export interface Augury {
+  /** Local calendar date of the consultation, YYYY-MM-DD. */
+  date: string;
+  kind: AuguryKind;
+  /** The style edict written into agent-harness instruction files. */
+  edict: string;
+  /** Flavor proclamation shown in the cave. */
+  proclamation: string;
+  /** Metric snapshot at augury time, for judging redemption tomorrow. */
+  snapshot: { coveragePct: number; testFiles: number; dragonsSlain: number };
+  /** Set by the NEXT augury: was the edict honored while it stood? */
+  honored?: boolean;
+  source: 'claude' | 'fallback';
+}
+
+export interface SkillForgeResult {
+  /** Absolute path of the generated SKILL.md. */
+  path: string;
+  source: 'claude' | 'fallback';
+}
+
+export type ShopItemId = 'forge-skill' | 'hint-rung' | 'oracle-token' | 'sharpening-stone';
 
 // ── Command running ──────────────────────────────────────────────────────────
 
