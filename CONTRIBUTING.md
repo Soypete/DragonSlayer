@@ -51,6 +51,9 @@ Node 22+ required (developed on 24). No other tooling, no accounts, no env vars.
 ## Pull requests
 
 - Branch from `main`; keep PRs focused on one quest at a time.
+- PRs land by **squash or rebase only** — merge commits are disabled and
+  `main` requires linear history. Your PR title becomes the commit title, so
+  write it like one. Merged branches are deleted automatically.
 - Describe what changed and how you verified it (test output beats prose).
 - Screenshots/casts encouraged for UI changes — it's a terminal game; show
   the terminal.
