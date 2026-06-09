@@ -20,20 +20,22 @@ import {
 } from '../../typing/engine.js';
 import { snippetsFromFile } from '../../typing/snippets.js';
 import { COLORS, formatDuration, formatPct, hpBar, hpColor } from '../theme.js';
-import { padSnippets, SCROLLS_PER_BATTLE } from '../logic.js';
+import { padSnippets, sharpenSpoils, SCROLLS_PER_BATTLE } from '../logic.js';
 import { KeyHints } from '../components/KeyHints.js';
 import { Spinner } from '../components/Spinner.js';
 
 export interface BattleScreenProps {
   dragon: Dragon;
   repoPath: string;
+  /** Sharpened-blade damage multiplier from the sword-school (1 = none). */
+  blade?: number;
   /** Called once with the spoils the moment the last scroll is finished. */
   onSpoils: (dragonId: string, result: BattleResult) => void;
   /** Leave the battlefield (after the summary, or fleeing mid-fight). */
   onLeave: () => void;
 }
 
-export function BattleScreen({ dragon, repoPath, onSpoils, onLeave }: BattleScreenProps) {
+export function BattleScreen({ dragon, repoPath, blade = 1, onSpoils, onLeave }: BattleScreenProps) {
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [spoils, setSpoils] = useState<BattleResult | null>(null);
 
@@ -81,7 +83,7 @@ export function BattleScreen({ dragon, repoPath, onSpoils, onLeave }: BattleScre
     }
 
     if (next.finished && !battle.finished) {
-      const result = battleResult(next);
+      const result = sharpenSpoils(battleResult(next), blade);
       setSpoils(result);
       onSpoils(dragon.id, result);
     }
@@ -97,15 +99,15 @@ export function BattleScreen({ dragon, repoPath, onSpoils, onLeave }: BattleScre
   }
 
   if (battle.finished && spoils) {
-    return <SpoilsView dragon={dragon} spoils={spoils} />;
+    return <SpoilsView dragon={dragon} spoils={spoils} blade={blade} />;
   }
 
-  return <FightView dragon={dragon} battle={battle} />;
+  return <FightView dragon={dragon} battle={battle} blade={blade} />;
 }
 
 // ── Mid-fight view ───────────────────────────────────────────────────────────
 
-function FightView({ dragon, battle }: { dragon: Dragon; battle: BattleState }) {
+function FightView({ dragon, battle, blade }: { dragon: Dragon; battle: BattleState; blade: number }) {
   const scroll = currentSnippet(battle);
   const live = battleResult(battle);
 
@@ -120,6 +122,9 @@ function FightView({ dragon, battle }: { dragon: Dragon; battle: BattleState }) 
         <Text>
           <Text color={hpColor(dragon.hp, dragon.maxHp)}>{hpBar(dragon.hp, dragon.maxHp, 24)}</Text>
           <Text color={COLORS.steel}> {dragon.hp}/{dragon.maxHp} uncovered lines</Text>
+          {blade > 1 ? (
+            <Text color={COLORS.torch}>  ⚔ sharpened blade ×{blade.toFixed(1)}</Text>
+          ) : null}
         </Text>
       </Box>
 
@@ -176,7 +181,7 @@ function SnippetLine({ text, typed }: { text: string; typed: BattleState['typed'
 
 // ── End-of-battle spoils ─────────────────────────────────────────────────────
 
-function SpoilsView({ dragon, spoils }: { dragon: Dragon; spoils: BattleResult }) {
+function SpoilsView({ dragon, spoils, blade }: { dragon: Dragon; spoils: BattleResult; blade: number }) {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box borderStyle="double" borderColor={COLORS.gold} paddingX={1} flexDirection="column">
@@ -187,6 +192,11 @@ function SpoilsView({ dragon, spoils }: { dragon: Dragon; spoils: BattleResult }
           {'  '}WPM <Text color={COLORS.banner}>{Math.round(spoils.wpm)}</Text>
           {'  '}Accuracy <Text color={COLORS.banner}>{formatPct(spoils.accuracy * 100)}</Text>
         </Text>
+        {blade > 1 ? (
+          <Text color={COLORS.torch}>
+            ⚔ Your sharpened blade (×{blade.toFixed(1)}) bit deeper — the edge is now spent.
+          </Text>
+        ) : null}
         <Text color={COLORS.steel}>
           {spoils.keystrokes} strikes, {spoils.mistakes} fumbles, {formatDuration(spoils.durationMs)} in the lists.
         </Text>

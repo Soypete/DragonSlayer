@@ -4,11 +4,15 @@
  * No commands are run and no save is written on these paths.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { join } from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import type { Dragon, GameConfig, Quest, RepoScan, SaveGame } from '../types.js';
+import { loadSave } from '../game/state.js';
+import { newVimProgress } from '../vim/trials.js';
 import { App } from './App.js';
 
 const REPO = join(process.cwd(), 'practice-dungeon');
@@ -156,6 +160,140 @@ describe('the Keep — screen state machine', () => {
     stdin.write('');
     await settle();
     expect(lastFrame()).toContain('Realm coverage');
+    unmount();
+  });
+});
+
+// ── The realm map rides like vim ─────────────────────────────────────────────
+
+const ESC = '';
+
+const secondDragon: Dragon = {
+  id: 'src/moat-auth.ts',
+  file: 'src/moat-auth.ts',
+  name: 'Sallowfang the Porous',
+  species: 'Null Drake',
+  maxHp: 12,
+  hp: 12,
+  weakened: 0,
+  slain: false,
+  coveragePct: 0,
+};
+
+async function bootRealm(realmSave: SaveGame) {
+  const instance = render(
+    <App config={config} initialScan={scan} initialSave={realmSave} hadChronicle={true} />,
+  );
+  await settle();
+  instance.stdin.write('\r'); // ride forth to the map
+  await settle();
+  return instance;
+}
+
+describe('the realm map — vim navigation and the sword-school gate', () => {
+  const twoLairs: SaveGame = { ...save, dragons: [...dragons, secondDragon] };
+
+  it('roams the roster with j and k', async () => {
+    const { lastFrame, stdin, unmount } = await bootRealm(twoLairs);
+    expect(lastFrame()).toContain('❯ ± Vexmaw the Untested');
+    stdin.write('j');
+    await settle();
+    expect(lastFrame()).toContain('❯ ø Sallowfang the Porous');
+    stdin.write('k');
+    await settle();
+    expect(lastFrame()).toContain('❯ ± Vexmaw the Untested');
+    unmount();
+  });
+
+  it('leaps to the last lair with G and back to the first with gg', async () => {
+    const { lastFrame, stdin, unmount } = await bootRealm(twoLairs);
+    stdin.write('G');
+    await settle();
+    expect(lastFrame()).toContain('❯ ø Sallowfang the Porous');
+    stdin.write('g');
+    await settle();
+    stdin.write('g');
+    await settle();
+    expect(lastFrame()).toContain('❯ ± Vexmaw the Untested');
+    unmount();
+  });
+
+  it('surfaces the sword-school in the footer and opens it with v', async () => {
+    const { lastFrame, stdin, unmount } = await bootRealm(save);
+    expect(lastFrame()).toContain('sword-school');
+    stdin.write('v');
+    await settle();
+    expect(lastFrame()).toContain('The Sword-School');
+    expect(lastFrame()).toContain('Eastward, Squire');
+    stdin.write(ESC);
+    await settle();
+    expect(lastFrame()).toContain('Realm coverage');
+    unmount();
+  });
+});
+
+// ── The sharpened blade rides into battle ────────────────────────────────────
+
+describe('the battle — sharpened blade buff', () => {
+  it('shows the blade multiplier over the wound-gauge when buffed', async () => {
+    const buffed: SaveGame = { ...save, vim: { ...newVimProgress(), bladeBuff: 1.2 } };
+    const { lastFrame, stdin, unmount } = await bootRealm(buffed);
+    stdin.write('\r'); // engage
+    await settle(150);
+    expect(lastFrame()).toContain('⚔ sharpened blade ×1.2');
+    unmount();
+  });
+
+  it('keeps an unsharpened battle free of blade talk', async () => {
+    const { lastFrame, stdin, unmount } = await bootRealm(save);
+    stdin.write('\r');
+    await settle(150);
+    expect(lastFrame()).not.toContain('sharpened blade');
+    unmount();
+  });
+});
+
+// ── A full trial, chronicled to disk ─────────────────────────────────────────
+
+describe('the Keep — a sword-school trial persists to the chronicle', () => {
+  let vault: string;
+  let priorHome: string | undefined;
+
+  beforeEach(() => {
+    vault = mkdtempSync(join(tmpdir(), 'gme-vault-'));
+    priorHome = process.env.HOME;
+    process.env.HOME = vault; // os.homedir() honors $HOME on POSIX
+  });
+
+  afterEach(() => {
+    if (priorHome === undefined) delete process.env.HOME;
+    else process.env.HOME = priorHome;
+    rmSync(vault, { recursive: true, force: true });
+  });
+
+  it('walks lesson → practice → scored → debrief and writes the save', async () => {
+    const { lastFrame, stdin, unmount } = await bootRealm(save);
+    stdin.write('v');
+    await settle();
+    stdin.write('\r'); // take Eastward, Squire
+    await settle();
+    expect(lastFrame()).toContain('l walks right, h walks left');
+    stdin.write('\r'); // practice rep
+    await settle();
+    stdin.write('lll');
+    await settle();
+    expect(lastFrame()).toContain('✓ The goal is met!');
+    stdin.write('\r'); // scored attempt
+    await settle();
+    stdin.write('lll');
+    await settle();
+    expect(lastFrame()).toContain('★★★');
+    expect(lastFrame()).toContain('XP +30');
+
+    const chronicle = loadSave(REPO);
+    expect(chronicle?.xp).toBe(30);
+    expect(chronicle?.vim?.results['t1-eastward-squire']?.stars).toBe(3);
+    expect(chronicle?.vim?.bladeBuff).toBe(1.5);
     unmount();
   });
 });

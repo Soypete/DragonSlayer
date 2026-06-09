@@ -19,16 +19,28 @@ export interface MapScreenProps {
   onOracle: () => void;
   onForge: () => void;
   onE2e: () => void;
+  onTrials: () => void;
 }
 
-export function MapScreen({ save, scan, onEngage, onQuests, onOracle, onForge, onE2e }: MapScreenProps) {
+export function MapScreen({ save, scan, onEngage, onQuests, onOracle, onForge, onE2e, onTrials }: MapScreenProps) {
   const roster = useMemo(() => musterRoster(save.dragons), [save.dragons]);
   const [cursor, setCursor] = useState(0);
+  const [leaderG, setLeaderG] = useState(false);
   const clamped = roster.length === 0 ? 0 : Math.min(cursor, roster.length - 1);
 
   useRealmInput((input, key) => {
-    if (key.upArrow) setCursor(() => (clamped + roster.length - 1) % Math.max(1, roster.length));
-    else if (key.downArrow) setCursor(() => (clamped + 1) % Math.max(1, roster.length));
+    // gg leaps to the first lair, k9s-style: a lone g waits for its twin.
+    if (input === 'g') {
+      if (leaderG) {
+        setCursor(0);
+        setLeaderG(false);
+      } else setLeaderG(true);
+      return;
+    }
+    setLeaderG(false);
+    if (key.upArrow || input === 'k') setCursor(() => (clamped + roster.length - 1) % Math.max(1, roster.length));
+    else if (key.downArrow || input === 'j') setCursor(() => (clamped + 1) % Math.max(1, roster.length));
+    else if (input === 'G') setCursor(Math.max(0, roster.length - 1));
     else if (key.return) {
       const chosen = roster[clamped];
       if (chosen && !chosen.slain) onEngage(chosen);
@@ -36,6 +48,7 @@ export function MapScreen({ save, scan, onEngage, onQuests, onOracle, onForge, o
     else if (input === 'o') onOracle();
     else if (input === 'f') onForge();
     else if (input === 'e') onE2e();
+    else if (input === 'v') onTrials();
   });
 
   const [start, end] = scrollWindow(roster.length, clamped, WINDOW_HEIGHT);
@@ -64,8 +77,10 @@ export function MapScreen({ save, scan, onEngage, onQuests, onOracle, onForge, o
       </Box>
       <KeyHints
         hints={[
-          { key: '↑↓', does: 'roam' },
+          { key: 'j/k ↑↓', does: 'roam' },
+          { key: 'gg/G', does: 'top/bottom' },
           { key: 'enter', does: 'engage' },
+          { key: 'v', does: 'sword-school' },
           { key: 'q', does: 'quests' },
           { key: 'o', does: 'oracle' },
           { key: 'f', does: 'forge (coverage)' },

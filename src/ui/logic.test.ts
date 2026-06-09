@@ -1,19 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import type {
+  BattleResult,
   CoverageData,
   Dragon,
   Quest,
   RepoScan,
   SaveGame,
+  TrialResult,
   TypingSnippet,
 } from '../types.js';
 import { newSave } from '../game/state.js';
+import { createVimBuffer, playKeys } from '../vim/engine.js';
+import { TRIALS, newVimProgress } from '../vim/trials.js';
 import {
   padSnippets,
   questBountyXp,
   chronicleScan,
+  chronicleTrial,
+  debriefLine,
+  dullBlade,
+  forgeTrialResult,
+  hintToll,
   musterRoster,
+  scribeKeys,
   scrollWindow,
+  sharpenSpoils,
+  starGlyphs,
+  trialFulfilled,
+  HINT_COST,
   SCROLLS_PER_BATTLE,
 } from './logic.js';
 
@@ -203,5 +217,176 @@ describe('scrollWindow — keeping the chosen dragon in sight', () => {
   it('pins to the top and bottom edges', () => {
     expect(scrollWindow(20, 0, 6)).toEqual([0, 6]);
     expect(scrollWindow(20, 19, 6)).toEqual([14, 20]);
+  });
+});
+
+// ── Sword-school glue ────────────────────────────────────────────────────────
+
+describe('hintToll — the price of a whisper', () => {
+  it('lets the first rung go free', () => {
+    expect(hintToll(0, 0)).toBe(0);
+    expect(hintToll(0, 100)).toBe(0);
+  });
+  it('charges the standing fee for rungs 2 and 3 when the purse allows', () => {
+    expect(hintToll(1, 20)).toBe(HINT_COST);
+    expect(hintToll(2, HINT_COST)).toBe(HINT_COST);
+  });
+  it('waives the fee when the knight is too poor to pay', () => {
+    expect(hintToll(1, HINT_COST - 1)).toBe(0);
+    expect(hintToll(2, 0)).toBe(0);
+  });
+});
+
+describe('trialFulfilled — the trial stands only at rest', () => {
+  const goal = { kind: 'cursor', row: 0, col: 3 } as const;
+  const start = () => createVimBuffer(['go east, brave squire'], { row: 0, col: 0 });
+
+  it('is met when the cursor rests on the goal in normal mode', () => {
+    expect(trialFulfilled(playKeys(start(), 'lll'), goal)).toBe(true);
+  });
+  it('is not met while the quill is drawn (insert mode)', () => {
+    expect(trialFulfilled(playKeys(start(), 'llli'), goal)).toBe(false);
+  });
+  it('is not met while an operator hangs half-spoken', () => {
+    expect(trialFulfilled(playKeys(start(), 'llld'), goal)).toBe(false);
+  });
+  it('is not met while a count hangs half-spoken', () => {
+    expect(trialFulfilled(playKeys(start(), 'lll3'), goal)).toBe(false);
+  });
+  it('is not met away from the goal', () => {
+    expect(trialFulfilled(playKeys(start(), 'll'), goal)).toBe(false);
+  });
+});
+
+describe('forgeTrialResult — striking the verdict', () => {
+  const trial = TRIALS[0]!; // tier 1, par 3
+
+  it('awards three stars, full XP and the keen blade at par without hints', () => {
+    const result = forgeTrialResult(trial, trial.par, 0, 4_200);
+    expect(result).toEqual<TrialResult>({
+      trialId: trial.id,
+      keystrokes: trial.par,
+      par: trial.par,
+      durationMs: 4_200,
+      hintsUsed: 0,
+      stars: 3,
+      xpEarned: 30,
+      blade: 1.5,
+    });
+  });
+  it('caps a hinted par run at two stars', () => {
+    const result = forgeTrialResult(trial, trial.par, 1, 1_000);
+    expect(result.stars).toBe(2);
+    expect(result.xpEarned).toBe(20);
+    expect(result.blade).toBe(1.2);
+  });
+  it('grants one star for a bloodied finish beyond twice par', () => {
+    const result = forgeTrialResult(trial, trial.par * 2 + 1, 0, 1_000);
+    expect(result.stars).toBe(1);
+    expect(result.xpEarned).toBe(10);
+    expect(result.blade).toBe(1.0);
+  });
+});
+
+describe('chronicleTrial — the trial spoils path', () => {
+  const result: TrialResult = {
+    trialId: 't1-eastward-squire',
+    keystrokes: 3,
+    par: 3,
+    durationMs: 2_000,
+    hintsUsed: 0,
+    stars: 3,
+    xpEarned: 30,
+    blade: 1.5,
+  };
+
+  it('awards XP, re-judges the rank, and records the result', () => {
+    const save = { ...newSave('/keep/of/greyhollow'), xp: 240 };
+    const next = chronicleTrial(save, result);
+    expect(next.xp).toBe(270);
+    expect(next.rank).toBe('squire'); // 250 XP crossed by the trial
+    expect(next.vim?.results['t1-eastward-squire']).toEqual(result);
+    expect(next.vim?.bladeBuff).toBe(1.5);
+  });
+  it('creates vim progress for saves from before the sword-school', () => {
+    const save = newSave('/keep/of/greyhollow');
+    expect(save.vim).toBeUndefined();
+    const next = chronicleTrial(save, result);
+    expect(next.vim?.unlockedTier).toBe(1);
+  });
+  it('is pure — the prior save is untouched', () => {
+    const save = newSave('/keep/of/greyhollow');
+    const frozen = JSON.parse(JSON.stringify(save)) as SaveGame;
+    chronicleTrial(save, result);
+    expect(save).toEqual(frozen);
+  });
+});
+
+describe('sharpenSpoils & dullBlade — the blade buff lifecycle', () => {
+  const spoils: BattleResult = {
+    wpm: 60,
+    accuracy: 0.95,
+    durationMs: 30_000,
+    keystrokes: 200,
+    mistakes: 5,
+    damage: 33,
+    xpEarned: 25,
+  };
+
+  it('multiplies damage by the blade and rounds to whole wounds', () => {
+    expect(sharpenSpoils(spoils, 1.5).damage).toBe(50);
+    expect(sharpenSpoils(spoils, 1.2).damage).toBe(40);
+  });
+  it('leaves the spoils alone for an unsharpened blade', () => {
+    expect(sharpenSpoils(spoils, 1)).toBe(spoils);
+  });
+  it('never touches XP — only the wound', () => {
+    expect(sharpenSpoils(spoils, 1.5).xpEarned).toBe(spoils.xpEarned);
+  });
+  it('dullBlade resets a spent buff to 1 and keeps the rest of the progress', () => {
+    const save: SaveGame = {
+      ...newSave('/keep/of/greyhollow'),
+      vim: { ...newVimProgress(), unlockedTier: 3, bladeBuff: 1.5 },
+    };
+    const dulled = dullBlade(save);
+    expect(dulled.vim?.bladeBuff).toBe(1);
+    expect(dulled.vim?.unlockedTier).toBe(3);
+  });
+  it('dullBlade passes old saves (no vim) and unbuffed saves through unchanged', () => {
+    const bare = newSave('/keep/of/greyhollow');
+    expect(dullBlade(bare)).toBe(bare);
+    const calm: SaveGame = { ...bare, vim: newVimProgress() };
+    expect(dullBlade(calm)).toBe(calm);
+  });
+});
+
+describe('scribeKeys & starGlyphs — the debrief scribe', () => {
+  it('spells out every stroke, spaces included', () => {
+    expect(scribeKeys(['l', 'l', ' ', '<esc>'])).toBe('ll␣<esc>');
+  });
+  it('renders stars lit and hollow', () => {
+    expect(starGlyphs(0)).toBe('☆☆☆');
+    expect(starGlyphs(2)).toBe('★★☆');
+    expect(starGlyphs(3)).toBe('★★★');
+  });
+  it('clamps out-of-range star counts', () => {
+    expect(starGlyphs(-1)).toBe('☆☆☆');
+    expect(starGlyphs(9)).toBe('★★★');
+  });
+});
+
+describe('debriefLine — one line of judgment', () => {
+  it('hails a flawless unhinted par run', () => {
+    expect(debriefLine(3, 3, 0)).toContain('Flawless');
+  });
+  it('notes when hints dimmed the third star', () => {
+    expect(debriefLine(3, 3, 1)).toContain('hints');
+  });
+  it('counts the strokes to shave inside twice par', () => {
+    expect(debriefLine(5, 3, 0)).toContain('Shave 2 strokes');
+    expect(debriefLine(4, 3, 0)).toContain('Shave 1 stroke ');
+  });
+  it('consoles the bloodied beyond twice par', () => {
+    expect(debriefLine(8, 3, 0)).toContain('bloodied');
   });
 });

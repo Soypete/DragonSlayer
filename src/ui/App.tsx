@@ -9,7 +9,7 @@ import type { BattleResult, Dragon, GameConfig, RepoScan, SaveGame } from '../ty
 import { applyBattle, hasWon, newSave, writeSave } from '../game/state.js';
 import { buildDragons } from '../repo/scanner.js';
 import { dragonName } from '../game/naming.js';
-import { chronicleScan } from './logic.js';
+import { chronicleScan, dullBlade } from './logic.js';
 import { TitleScreen } from './screens/TitleScreen.js';
 import { MapScreen } from './screens/MapScreen.js';
 import { BattleScreen } from './screens/BattleScreen.js';
@@ -17,8 +17,9 @@ import { QuestsScreen } from './screens/QuestsScreen.js';
 import { OracleScreen } from './screens/OracleScreen.js';
 import { ForgeScreen, type ForgeMode } from './screens/ForgeScreen.js';
 import { VictoryScreen } from './screens/VictoryScreen.js';
+import { TrialsScreen } from './screens/TrialsScreen.js';
 
-export type Screen = 'title' | 'map' | 'battle' | 'quests' | 'oracle' | 'forge' | 'victory';
+export type Screen = 'title' | 'map' | 'battle' | 'quests' | 'oracle' | 'forge' | 'victory' | 'trials';
 
 export interface AppProps {
   config: GameConfig;
@@ -57,7 +58,8 @@ export function App({ config, initialScan, initialSave, hadChronicle }: AppProps
   };
 
   const collectSpoils = (dragonId: string, result: BattleResult) => {
-    commit(applyBattle(save, dragonId, result));
+    // The battle consumed any sharpened-blade buff; dull it back to 1.
+    commit(dullBlade(applyBattle(save, dragonId, result)));
   };
 
   const openForge = (mode: ForgeMode) => {
@@ -91,6 +93,7 @@ export function App({ config, initialScan, initialSave, hadChronicle }: AppProps
           onOracle={() => setScreen('oracle')}
           onForge={() => openForge('coverage')}
           onE2e={() => openForge('e2e')}
+          onTrials={() => setScreen('trials')}
         />
       );
     case 'battle':
@@ -98,6 +101,7 @@ export function App({ config, initialScan, initialSave, hadChronicle }: AppProps
         <BattleScreen
           dragon={foe}
           repoPath={config.repoPath}
+          blade={save.vim?.bladeBuff ?? 1}
           onSpoils={collectSpoils}
           onLeave={() => {
             setFoe(null);
@@ -125,6 +129,8 @@ export function App({ config, initialScan, initialSave, hadChronicle }: AppProps
           onDone={(won) => setScreen(won ? 'victory' : 'map')}
         />
       );
+    case 'trials':
+      return <TrialsScreen save={save} onChronicle={commit} onBack={() => setScreen('map')} />;
     case 'victory':
       return <VictoryScreen save={save} onBackToMap={() => setScreen('map')} />;
   }
