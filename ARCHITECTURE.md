@@ -1,0 +1,170 @@
+# Dragonslayer (`gme`) — Architecture
+
+A terminal RPG built with **TypeScript + Ink 5** (React for the terminal — the same
+rendering stack Claude Code uses). Bugs are dragons; you are a knight. You slay
+dragons by making real code reliably tested: typing battles weaken them, but only
+real coverage improvements kill them. Win = 100% line coverage + a passing
+end-to-end suite in the target repo.
+
+## Ground rules for every module
+
+- Node 24, ESM (`"type": "module"`), `moduleResolution: NodeNext` — **all relative
+  imports must use `.js` extensions** (e.g. `import { x } from '../types.js'`).
+- All domain types live in `src/types.ts`. Modules import ONLY from `src/types.ts`
+  and node builtins / installed deps (`ink`, `react`, `fast-glob`). Modules never
+  import each other — except `src/ui/` and `src/index.tsx`, which wire everything.
+- Dependencies are already installed. Do not run `npm install` in the project root.
+- Everything is local. No network calls, no auth. The only subprocesses are the
+  user-configured test commands and the optional `claude -p` oracle call.
+- Pure logic should be unit-tested with vitest (`*.test.ts` colocated). Test files
+  are excluded from `tsc` build by tsconfig.
+- `npm run typecheck` must pass for your files (other modules may not exist yet —
+  that's fine, just ensure YOUR files have no errors of their own).
+
+## Module map
+
+```
+src/
+  types.ts            # shared contract (done — read it first, do not modify)
+  game/               # agent: game-core
+    ranks.ts naming.ts quests.ts state.ts
+  repo/               # agent: repo-scanner
+    config.ts scanner.ts runner.ts
+  typing/             # agent: typing-engine
+    engine.ts snippets.ts
+  ai/                 # agent: oracle
+    oracle.ts
+  ui/                 # agent: ui (after modules exist)
+    App.tsx theme.ts screens/* components/*
+  index.tsx           # agent: ui — CLI entry
+practice-dungeon/     # agent: practice-dungeon — standalone fixture project
+```
+
+## Module specs
+
+### `src/game/` (game-core)
+
+- **ranks.ts** — `export const RANKS: Rank[]` (page→dragonlord, minXp 0, 250, 750,
+  1750, 3500, 6000, 10000). `rankForXp(xp): Rank`, `nextRank(xp): Rank | null`.
+- **naming.ts** — `dragonName(file: string): { name: string; species: DragonSpecies }`.
+  Deterministic (hash the path; no Math.random) so saves stay stable. Names like
+  "Vexmaw the Untested", flavor by directory/extension.
+- **state.ts** — save/load + pure reducers:
+  - `savePath(repoPath): string` → `~/.gme/saves/<sha1-of-abs-repo-path>.json`
+  - `loadSave(repoPath): SaveGame | null`, `writeSave(save): void` (mkdir -p).
+  - `newSave(repoPath): SaveGame`.
+  - `applyScan(save, scan: RepoScan, dragons: Dragon[]): SaveGame` — merges fresh
+    dragons (preserving `weakened` on survivors), awards XP for coverage delta
+    (+15 XP per +1% total line coverage), marks newly slain dragons
+    (+2×maxHp XP each, +50 gold), updates `lastScan`, refreshes quest objectives.
+  - `applyBattle(save, dragonId, result: BattleResult): SaveGame` — adds XP/gold,
+    bumps `weakened` (cap 1), updates stats.
+  - `hasWon(save, scan): boolean` — totals.lines.pct === 100 AND playwright
+    configured with ≥1 spec (e2e quest objective complete).
+- **quests.ts** — `generateQuests(scan: RepoScan, dragons: Dragon[], existing: Quest[]): Quest[]`.
+  Deterministic ids so regeneration preserves status. Quest set:
+  - one `slay` quest per top-5 biggest living dragon,
+  - `coverage` milestone quests (50/75/90/100% total line coverage),
+  - `tdd` quest: "the test count must rise" (testFiles count > count at quest creation),
+  - `ci` quest: workflows exist + hasTestJob,
+  - `e2e` quest: playwright configured, ≥1 spec.
+  `refreshQuestObjectives(quests, scan, dragons): Quest[]` marks objectives/status.
+
+### `src/repo/` (repo-scanner)
+
+- **config.ts** — `resolveConfig(repoPath: string): Promise<GameConfig>`:
+  1. If `<repo>/gme.config.json` exists, merge it over defaults.
+  2. Else guess from package.json scripts (prefer `test:coverage`, `coverage`,
+     fall back to `npx vitest run --coverage`). e2e from `test:e2e` if present.
+  3. Defaults: coverageSummaryGlobs `["coverage/coverage-summary.json", "**/coverage/coverage-summary.json"]`
+     (ignore node_modules), sourceGlobs `["src/**/*.{ts,tsx,js,jsx}", "app/**/*.{ts,tsx,js,jsx}", "lib/**/*.{ts,tsx,js,jsx}"]`,
+     excludeGlobs for `*.test.*`, `*.spec.*`, `**/node_modules/**`, `**/dist/**`, `**/*.d.ts`.
+- **scanner.ts** —
+  - `scanRepo(cfg: GameConfig): Promise<RepoScan>` — fast-glob the source/test files,
+    find newest coverage-summary.json among globs and parse it (istanbul
+    json-summary format: `{ total: {...}, "<abs path>": { lines: {...}, ... } }`;
+    normalize absolute keys to repo-relative posix paths). Detect playwright
+    (playwright.config.* anywhere outside node_modules; count `*.spec.*` files
+    under its dir / `e2e|tests` dirs). Detect CI (`.github/workflows/*.yml`,
+    hasTestJob if any file content matches /\b(test|vitest|jest|playwright)\b/i).
+  - `buildDragons(scan: RepoScan): Dragon[]` — one dragon per source file with
+    coverage data and lines.pct < 100 (hp = uncovered lines), PLUS files with NO
+    coverage entry at all (hp = file line count, the most dangerous kind).
+    Uses naming via a callback param `(file) => {name, species}` so repo/ doesn't
+    import game/ — signature: `buildDragons(scan, namer)`.
+- **runner.ts** — `runCommand(command: string, cwd: string, onOutput?: (chunk: string) => void): Promise<CommandRun>`.
+  Spawn via `child_process.spawn` with shell: true, stream combined output,
+  tail-truncate stored output to 8000 chars, never throw on nonzero exit.
+
+### `src/typing/` (typing-engine)
+
+- **engine.ts** — a pure state machine (no React):
+  - `createBattle(snippets: TypingSnippet[], dragonHp: number): BattleState`
+  - `feedKey(state, char, timestampMs): BattleState` — handles correct/incorrect,
+    backspace (`'\b'`), advances snippets. Tracks per-keystroke correctness,
+    combo streak, mistakes.
+  - `battleResult(state): BattleResult` — wpm = (correct chars / 5) / minutes,
+    accuracy = correct / total, damage = round(wpm × accuracy² × snippetCount),
+    xp = round(damage × (0.5 + accuracy/2)).
+  - Export `BattleState` interface from this file (UI reads it to render: current
+    snippet, typed-so-far with correctness flags, combo, elapsed).
+  - Timestamps always passed in (testable, no Date.now inside reducers).
+- **snippets.ts** —
+  - `snippetsFromFile(absPath: string, count: number): Promise<TypingSnippet[]>` —
+    read the file, pick "interesting" contiguous 1–2 line chunks (skip blanks,
+    imports, lone braces; prefer lines 20–120 chars; collapse leading whitespace
+    to none, internal whitespace normalized to single spaces). Deterministic
+    selection (seeded by file content hash), tagged kind 'code'.
+  - `incantations(file: string, count: number): TypingSnippet[]` — test-flavored
+    template snippets targeting the file, e.g.
+    `expect(slay('${basename}')).toBe(true)`, `describe('${basename}', () => { it('holds the line', () => {`,
+    kind 'incantation'.
+
+### `src/ai/` (oracle)
+
+- **oracle.ts** — `consultOracle(scan: RepoScan, dragons: Dragon[], timeoutMs = 30000): Promise<OracleProphecy>`:
+  - Try `claude -p <prompt> --output-format json` via execFile (no shell), prompt
+    asks for JSON `{hotspots:[{file,reason}], proclamation}` given the top
+    uncovered files. Parse `result` field of the CLI's JSON envelope; tolerate
+    fenced code blocks. On any error/timeout/missing binary → fallback.
+  - `fallbackProphecy(scan, dragons): OracleProphecy` — rank by hp desc, reasons
+    like "97 uncovered lines and no test file names it". Deterministic, source 'fallback'.
+
+### `src/ui/` + `src/index.tsx` (ui — built last)
+
+- `index.tsx`: parse argv (`--repo <path>`, default `./practice-dungeon` if it
+  exists else cwd), resolveConfig → scan → load/new save → render `<App>`.
+  Use Ink `render` with `exitOnCtrlC`.
+- Screens (state machine in App): **Title** (continue/new quest), **Map** (file-tree
+  of dragons, arrow navigation, shows HP bars, coverage %, rank/XP header),
+  **Battle** (typing UI: snippet with green/red per-char, WPM/accuracy/combo live,
+  damage summary at end), **Quests** (quest log), **Oracle** (prophecy view,
+  spinner while consulting), **Forge** (runs coverage/test command with streamed
+  output, then rescans — this is how dragons actually die), **Victory**.
+- Keybindings shown in a footer: arrows move, enter engage, q quests, o oracle,
+  f forge (run coverage), e run e2e, esc back, ctrl+c quit.
+- Theme in `theme.ts` (colors, HP bar renderer, sigils). Keep components small.
+- Persist save via game/state after every battle and rescan.
+
+### `practice-dungeon/` (practice-dungeon)
+
+Standalone vitest project used to develop/play before pointing at a real repo:
+- Own `package.json` (private, type module, devDeps: vitest + @vitest/coverage-v8),
+  scripts: `test` → `vitest run`, `test:coverage` → `vitest run --coverage`.
+  Vitest config with coverage reporters `['text', 'json-summary']` and
+  `coverage.include: ['src/**']`. **Run `npm install` inside practice-dungeon only.**
+- `src/` ~5 small TS modules with personality (potion brewing, drawbridge logic,
+  dragon math, quest ledger, moat auth) — a few latent bugs, plain functions, no deps.
+- `tests/` covering ~2 modules well, leaving the rest uncovered → 3+ dragons of
+  varied size out of the box.
+- A `gme.config.json` at its root pointing commands at vitest.
+- Verify: `npm run test:coverage` works in that dir and emits
+  `coverage/coverage-summary.json`.
+
+## Build order
+
+1. Contracts (done): types.ts, tsconfig, package.json.
+2. Parallel: game-core, repo-scanner, typing-engine, oracle, practice-dungeon.
+3. ui (needs 2's exports).
+4. Integration verify: typecheck, unit tests, boot against practice-dungeon with
+   ink-testing-library.
