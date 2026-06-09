@@ -60,6 +60,13 @@ istanbul-style `coverage-summary.json` (vitest: coverage reporter
 `json-summary`; jest: `--coverageReporters=json-summary`). Playwright is
 detected automatically for the e2e quest line.
 
+> **Monorepos:** the scanner currently reads the *newest single*
+> `coverage-summary.json` it finds — it does not yet merge summaries across
+> packages. In a turbo/pnpm/nx workspace, point the game at one package
+> (e.g. `--repo path/to/monorepo/apps/web`) for accurate dragons. Merged
+> multi-package realms and an in-game repo picker are planned — see the
+> issue tracker.
+
 ## How the game works
 
 - **Dragons** — one per source file with uncovered lines. HP = uncovered lines.
