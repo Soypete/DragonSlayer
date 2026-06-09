@@ -297,3 +297,128 @@ describe('the Keep — a sword-school trial persists to the chronicle', () => {
     unmount();
   });
 });
+
+// ── Pledges persist; the guild shop opens from the map ───────────────────────
+
+describe('the Keep — pledges and the guild shop', () => {
+  let vault: string;
+  let priorHome: string | undefined;
+
+  beforeEach(() => {
+    vault = mkdtempSync(join(tmpdir(), 'gme-vault-'));
+    priorHome = process.env.HOME;
+    process.env.HOME = vault; // os.homedir() honors $HOME on POSIX
+  });
+
+  afterEach(() => {
+    if (priorHome === undefined) delete process.env.HOME;
+    else process.env.HOME = priorHome;
+    rmSync(vault, { recursive: true, force: true });
+  });
+
+  it('pledges a quest from the board, persists it, and shows the map reminder', async () => {
+    const { lastFrame, stdin, unmount } = await bootRealm(save);
+    stdin.write('q'); // the guild board
+    await settle();
+    expect(lastFrame()).toContain('enter pledges');
+    stdin.write('\r'); // swear to the first deed
+    await settle();
+    expect(lastFrame()).toContain('⚑');
+    expect(loadSave(REPO)?.pledges).toEqual(['slay:src/dragon-math.ts']);
+
+    stdin.write(''); // back to the map
+    await settle();
+    expect(lastFrame()).toContain('Pledged: Slay Vexmaw the Untested');
+    unmount();
+  });
+
+  it('renounces the pledge on a second enter and the ledger empties', async () => {
+    const { stdin, unmount } = await bootRealm(save);
+    stdin.write('q');
+    await settle();
+    stdin.write('\r'); // pledge…
+    await settle();
+    stdin.write('\r'); // …and renounce
+    await settle();
+    expect(loadSave(REPO)?.pledges).toEqual([]);
+    unmount();
+  });
+
+  it('opens the guild shop with s and returns with esc', async () => {
+    const { lastFrame, stdin, unmount } = await bootRealm(save);
+    expect(lastFrame()).toContain('guild shop');
+    stdin.write('s');
+    await settle();
+    expect(lastFrame()).toContain('The Guild Shop');
+    expect(lastFrame()).toContain('the guild extends no credit'); // a page's purse is empty
+    stdin.write('');
+    await settle();
+    expect(lastFrame()).toContain('Realm coverage');
+    unmount();
+  });
+});
+
+// ── Integration-verifier additions (appended: literal ESC bytes above defeat
+// exact-match edits). vi.mock is hoisted by vitest, so declaring it here still
+// mocks the squire for the whole file; renounceSkill becomes a spy wrapped
+// over nothing, while forgeSkill keeps its real (never-invoked-here) form. ──
+
+import { vi } from 'vitest';
+
+const renounceSkillSpy = vi.hoisted(() => vi.fn());
+vi.mock('../ai/squire.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../ai/squire.js')>();
+  return { ...actual, renounceSkill: renounceSkillSpy };
+});
+
+describe('the Keep — renouncing sends the squire to remove the forged skill', () => {
+  let vault: string;
+  let priorHome: string | undefined;
+
+  beforeEach(() => {
+    renounceSkillSpy.mockReset();
+    vault = mkdtempSync(join(tmpdir(), 'gme-vault-'));
+    priorHome = process.env.HOME;
+    process.env.HOME = vault; // os.homedir() honors $HOME on POSIX
+  });
+
+  afterEach(() => {
+    if (priorHome === undefined) delete process.env.HOME;
+    else process.env.HOME = priorHome;
+    rmSync(vault, { recursive: true, force: true });
+  });
+
+  it('pledging never calls renounceSkill; renouncing calls it with quest and config', async () => {
+    const { stdin, unmount } = await bootRealm(save);
+    stdin.write('q'); // the guild board
+    await settle();
+    stdin.write('\r'); // pledge…
+    await settle();
+    expect(renounceSkillSpy).not.toHaveBeenCalled();
+    stdin.write('\r'); // …and renounce
+    await settle();
+    expect(renounceSkillSpy).toHaveBeenCalledTimes(1);
+    const [renouncedQuest, renouncedConfig] = renounceSkillSpy.mock.calls[0];
+    expect(renouncedQuest.id).toBe('slay:src/dragon-math.ts');
+    expect(renouncedConfig.repoPath).toBe(REPO);
+    expect(loadSave(REPO)?.pledges).toEqual([]);
+    unmount();
+  });
+});
+
+describe('the battle — fleeing keeps the sharpened blade', () => {
+  it('the buff survives a flee and still rides the next engagement', async () => {
+    const buffed: SaveGame = { ...save, vim: { ...newVimProgress(), bladeBuff: 1.2 } };
+    const { lastFrame, stdin, unmount } = await bootRealm(buffed);
+    stdin.write('\r'); // engage
+    await settle(150);
+    expect(lastFrame()).toContain('⚔ sharpened blade ×1.2');
+    stdin.write(ESC); // flee — spoils were never collected, so no dulling
+    await settle();
+    expect(lastFrame()).toContain('Realm coverage');
+    stdin.write('\r'); // engage anew: the blade is still keen
+    await settle(150);
+    expect(lastFrame()).toContain('⚔ sharpened blade ×1.2');
+    unmount();
+  });
+});

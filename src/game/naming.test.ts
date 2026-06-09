@@ -54,4 +54,48 @@ describe('the Dragon Registry', () => {
     // Hash collisions in the small name-space are tolerable but should be rare.
     expect(names.size).toBeGreaterThan(45);
   });
+
+  it('keeps epithet collisions rare across a realm of lairs (≤ ~5% of pairs)', () => {
+    // The practice-dungeon roster plus 100 synthetic paths in the shapes a
+    // real scan produces — sibling files, nested dirs, mixed extensions.
+    const paths = [
+      'src/dragon-math.ts',
+      'src/drawbridge.ts',
+      'src/potions.ts',
+      'src/quest-ledger.ts',
+      'src/moat-auth.ts',
+    ];
+    const dirs = ['src', 'src/keep', 'app/realm', 'lib/wards', 'src/deep/crypt'];
+    const stems = ['auth', 'cache', 'ledger', 'parser', 'tower', 'gate', 'rune', 'ember', 'vault', 'scout'];
+    const exts = ['ts', 'tsx'];
+    for (let i = 0; i < 100; i++) {
+      const dir = dirs[i % dirs.length];
+      const stem = stems[i % stems.length];
+      const ext = exts[i % exts.length];
+      paths.push(`${dir}/${stem}-${i}.${ext}`);
+    }
+
+    const epithets = paths.map((p) => {
+      const { name } = dragonName(p);
+      const at = name.indexOf(' the ');
+      expect(at).toBeGreaterThan(0);
+      return name.slice(at + 1);
+    });
+
+    // Pairwise collision rate: of all distinct pairs of dragons, how many
+    // share an epithet? Uniform draws from 48 epithets expect ~2%.
+    let collisions = 0;
+    let pairs = 0;
+    for (let i = 0; i < epithets.length; i++) {
+      for (let j = i + 1; j < epithets.length; j++) {
+        pairs++;
+        if (epithets[i] === epithets[j]) collisions++;
+      }
+    }
+    expect(collisions / pairs).toBeLessThanOrEqual(0.05);
+
+    // And full names should essentially never collide in a set this size.
+    const names = new Set(paths.map((p) => dragonName(p).name));
+    expect(names.size).toBe(paths.length);
+  });
 });

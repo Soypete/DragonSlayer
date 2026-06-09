@@ -4,6 +4,7 @@
  */
 
 import type {
+  Augury,
   BattleResult,
   Dragon,
   Quest,
@@ -174,6 +175,50 @@ export function scribeKeys(keys: string[]): string {
 export function starGlyphs(stars: number): string {
   const lit = Math.max(0, Math.min(3, Math.floor(stars)));
   return '★'.repeat(lit) + '☆'.repeat(3 - lit);
+}
+
+// ── Pledges & the daily augury — guild glue ──────────────────────────────────
+
+/**
+ * The local calendar day as YYYY-MM-DD. The Date is read from the wall clock
+ * in the UI layer (App) and passed in — this formatter stays pure.
+ */
+export function localDay(now: Date): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/** A standing blessing sweetens every battle's XP by this factor, same-day only. */
+export const BLESSING_XP_MULTIPLIER = 1.1;
+
+/**
+ * The daily augury's stake: a BLESSING grants a same-day 1.1× multiplier on
+ * battle XP. Applied in the spoils path — App.collectSpoils blesses the
+ * BattleResult here BEFORE applyBattle banks the XP — so the bonus rides the
+ * same commit as every other battle spoil. Curses, omens, and yesterday's
+ * blessings change nothing.
+ */
+export function blessSpoils(
+  result: BattleResult,
+  augury: Augury | undefined,
+  today: string,
+): BattleResult {
+  if (!augury || augury.kind !== 'blessing' || augury.date !== today) return result;
+  return { ...result, xpEarned: Math.round(result.xpEarned * BLESSING_XP_MULTIPLIER) };
+}
+
+/**
+ * The realm map's standing reminder of sworn deeds: the first pledged quest's
+ * title, with a count when more pledges stand behind it. Null when no pledge
+ * still matches a quest on the board.
+ */
+export function pledgeBanner(quests: Quest[], pledges: string[]): string | null {
+  const sworn = new Set(pledges);
+  const pledged = quests.filter((q) => sworn.has(q.id));
+  if (pledged.length === 0) return null;
+  const tail = pledged.length > 1 ? ` (+${pledged.length - 1} more sworn)` : '';
+  return `Pledged: ${pledged[0].title}${tail}`;
 }
 
 /** The debrief's one-line judgment of a scored attempt. */

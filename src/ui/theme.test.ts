@@ -37,18 +37,27 @@ describe('hpBar — the wound-gauge smithy', () => {
   });
 });
 
-describe('hpColor — torchlight triage', () => {
-  it('burns verdant when hale', () => {
-    expect(hpColor(10, 10)).toBe(COLORS.verdant);
+describe('hpColor — the dragon threat-gauge', () => {
+  it('burns ember-red at full fury', () => {
+    expect(hpColor(10, 10)).toBe(COLORS.ember);
+    expect(hpColor(9, 10)).toBe(COLORS.ember);
   });
   it('burns torch-orange when bloodied', () => {
     expect(hpColor(5, 10)).toBe(COLORS.torch);
+    expect(hpColor(7, 10)).toBe(COLORS.torch);
   });
-  it('burns ember-red when desperate', () => {
-    expect(hpColor(1, 10)).toBe(COLORS.ember);
+  it('dims to gold as the beast falters', () => {
+    expect(hpColor(3, 10)).toBe(COLORS.gold);
+    expect(hpColor(2, 10)).toBe(COLORS.gold);
+  });
+  it('grants a verdant sliver only when nearly slain', () => {
+    expect(hpColor(1, 10)).toBe(COLORS.verdant);
+    expect(hpColor(15, 100)).toBe(COLORS.verdant);
   });
   it('fades to parchment when slain', () => {
     expect(hpColor(0, 10)).toBe(COLORS.parchment);
+    expect(hpColor(-3, 10)).toBe(COLORS.parchment);
+    expect(hpColor(0, 0)).toBe(COLORS.parchment);
   });
 });
 

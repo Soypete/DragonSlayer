@@ -160,8 +160,8 @@ describe('battleResult', () => {
     expect(r.keystrokes).toBe(4);
   });
 
-  it('derives damage = round(wpm * accuracy^2 * snippetCount) and xp from damage', () => {
-    // Two scrolls of 10 chars each; 20 strikes over 12s, 15 of them clean.
+  it('normalizes damage to the dragon and pegs xp to raw performance', () => {
+    // Two scrolls of 10 chars each; 20 strikes over 12s, 16 of them clean.
     let s = createBattle([scroll('aaaaaaaaaa'), scroll('bbbbbbbbbb')], 20);
     const strikes = 'aaaaXaaaXabbbbXbbbXb'; // 4 fumbles among 20
     for (let i = 0; i < strikes.length; i++) {
@@ -172,9 +172,75 @@ describe('battleResult', () => {
     // wpm = (16 / 5) / 0.2 min = 16; accuracy = 16/20 = 0.8
     expect(r.wpm).toBeCloseTo(16, 10);
     expect(r.accuracy).toBe(0.8);
-    expect(r.damage).toBe(Math.round(16 * 0.8 * 0.8 * 2)); // 20
-    expect(r.damage).toBe(20);
-    expect(r.xpEarned).toBe(Math.round(20 * (0.5 + 0.8 / 2))); // 18
+    // rawPower = 16 × 0.8² = 10.24; skillFactor = 10.24 / 60 ≈ 0.1707
+    // damage = round(0.1707 × 20 hp) = 3
+    expect(r.damage).toBe(Math.round((16 * 0.8 * 0.8 * 20) / 60));
+    expect(r.damage).toBe(3);
+    // xp = round(rawPower × 2 scrolls × (0.5 + 0.8/2)) = round(18.432) = 18
+    expect(r.xpEarned).toBe(Math.round(16 * 0.8 * 0.8 * 2 * (0.5 + 0.8 / 2)));
+    expect(r.xpEarned).toBe(18);
+  });
+
+  // Crafting exact wpm/accuracy through feedKey is fiddly; battleResult is a
+  // pure function of the state ledger, so these forge the ledger directly.
+  const forgedState = (opts: {
+    correctChars: number;
+    keystrokes: number;
+    durationMs: number;
+    dragonHp: number;
+    snippets: number;
+  }): BattleState => ({
+    ...createBattle(
+      Array.from({ length: opts.snippets }, () => scroll('x')),
+      opts.dragonHp,
+    ),
+    correctChars: opts.correctChars,
+    keystrokes: opts.keystrokes,
+    mistakes: opts.keystrokes - opts.correctChars,
+    startedAtMs: 0,
+    lastKeystrokeAtMs: opts.durationMs,
+    finished: true,
+  });
+
+  it("the playtester's pace (~30 wpm, 82%) carves 35-50% of a small dragon over 2-3 battles", () => {
+    // 205 clean of 250 strikes in 82s → wpm = 41/1.3667 = 30, accuracy = 0.82
+    const s = forgedState({
+      correctChars: 205,
+      keystrokes: 250,
+      durationMs: 82_000,
+      dragonHp: 11,
+      snippets: 5,
+    });
+    const r = battleResult(s);
+    expect(r.wpm).toBeCloseTo(30, 6);
+    expect(r.accuracy).toBeCloseTo(0.82, 10);
+    // skillFactor = 30 × 0.82² / 60 ≈ 0.336 → damage = round(0.336 × 11) = 4
+    expect(r.damage).toBe(4);
+    expect(r.damage / 11).toBeGreaterThanOrEqual(0.35);
+    expect(r.damage / 11).toBeLessThanOrEqual(0.5);
+    // xp keeps its old magnitude (~92 at this pace), not the dragon-sized damage
+    expect(r.xpEarned).toBe(92);
+  });
+
+  it('caps even a legendary duel at half the dragon, and floors a feeble one', () => {
+    // 120 wpm flawless: skillFactor 2.0 → clamped to 0.5 → half of 30 hp
+    const legend = battleResult(
+      forgedState({ correctChars: 200, keystrokes: 200, durationMs: 20_000, dragonHp: 30, snippets: 5 }),
+    );
+    expect(legend.wpm).toBe(120);
+    expect(legend.damage).toBe(15);
+
+    // 5 wpm at 50%: skillFactor ≈ 0.021 → clamped up to 0.05 of 30 hp ≈ 2
+    const feeble = battleResult(
+      forgedState({ correctChars: 50, keystrokes: 100, durationMs: 120_000, dragonHp: 30, snippets: 5 }),
+    );
+    expect(feeble.damage).toBe(Math.round(0.05 * 30));
+
+    // …and never less than a single scratch, even on a 1-hp runt.
+    const runt = battleResult(
+      forgedState({ correctChars: 50, keystrokes: 100, durationMs: 120_000, dragonHp: 1, snippets: 5 }),
+    );
+    expect(runt.damage).toBe(1);
   });
 
   it('yields a zero-spoils result for an untouched battle', () => {

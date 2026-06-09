@@ -130,21 +130,41 @@ export function feedKey(state: BattleState, char: string, timestampMs: number): 
   };
 }
 
+/** The knight every duel is measured against: 60 WPM at flawless accuracy. */
+const REFERENCE_WPM = 60;
+
 /**
  * Tally the spoils of battle.
  *
- * - wpm      = (correct chars / 5) / minutes elapsed
- * - accuracy = correct chars / total character keystrokes (0..1)
- * - damage   = round(wpm × accuracy² × snippetCount) — sloppy speed cuts no scales
- * - xp       = round(damage × (0.5 + accuracy / 2))
+ * - wpm         = (correct chars / 5) / minutes elapsed
+ * - accuracy    = correct chars / total character keystrokes (0..1)
+ * - skillFactor = (wpm × accuracy²) / 60 — performance against a 60-WPM
+ *                 flawless reference knight; sloppy speed cuts no scales
+ * - damage      = round(clamp(skillFactor, 0.05, 0.5) × dragonHp), min 1.
+ *                 Damage is NORMALIZED to the dragon under attack: the cap
+ *                 means even a perfect duel takes at most half its hp, so a
+ *                 dragon falls (weakened pins at 1) over an arc of 2-3
+ *                 battles instead of one — a 30-WPM / 82%-accuracy battle
+ *                 deals ~35-50% of a small dragon's hp.
+ * - xp          = round(wpm × accuracy² × snippetCount × (0.5 + accuracy / 2))
+ *                 XP stays pegged to RAW typing performance (the old damage
+ *                 scale), not the normalized damage — slaying a runt dragon
+ *                 must not shrink the knight's earnings.
+ *
+ * An untouched battle (no strikes) yields zero spoils across the board.
  */
 export function battleResult(state: BattleState): BattleResult {
   const durationMs = elapsedMs(state);
   const minutes = durationMs / 60_000;
   const wpm = minutes > 0 ? state.correctChars / 5 / minutes : 0;
   const accuracy = state.keystrokes > 0 ? state.correctChars / state.keystrokes : 0;
-  const damage = Math.round(wpm * accuracy * accuracy * state.snippets.length);
-  const xpEarned = Math.round(damage * (0.5 + accuracy / 2));
+  const rawPower = wpm * accuracy * accuracy;
+  const skillFactor = Math.min(0.5, Math.max(0.05, rawPower / REFERENCE_WPM));
+  const damage =
+    state.keystrokes > 0
+      ? Math.max(1, Math.round(skillFactor * Math.max(1, state.dragonHp)))
+      : 0;
+  const xpEarned = Math.round(rawPower * state.snippets.length * (0.5 + accuracy / 2));
 
   return {
     wpm,

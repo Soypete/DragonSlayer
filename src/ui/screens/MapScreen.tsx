@@ -4,8 +4,8 @@ import React, { useMemo, useState } from 'react';
 import { Box, Text } from 'ink';
 import { useRealmInput } from '../useRealmInput.js';
 import type { Dragon, RepoScan, SaveGame } from '../../types.js';
-import { COLORS, formatPct, hpBar, hpColor, speciesSigil } from '../theme.js';
-import { musterRoster, scrollWindow } from '../logic.js';
+import { COLORS, PLEDGE_SIGIL, auguryColor, augurySigil, formatPct, hpBar, hpColor, speciesSigil } from '../theme.js';
+import { musterRoster, pledgeBanner, scrollWindow } from '../logic.js';
 import { RankHeader } from '../components/RankHeader.js';
 import { KeyHints } from '../components/KeyHints.js';
 
@@ -14,15 +14,18 @@ const WINDOW_HEIGHT = 12;
 export interface MapScreenProps {
   save: SaveGame;
   scan: RepoScan;
+  /** Local calendar day, YYYY-MM-DD — read from the clock in the Keep. */
+  today: string;
   onEngage: (dragon: Dragon) => void;
   onQuests: () => void;
   onOracle: () => void;
   onForge: () => void;
   onE2e: () => void;
   onTrials: () => void;
+  onShop: () => void;
 }
 
-export function MapScreen({ save, scan, onEngage, onQuests, onOracle, onForge, onE2e, onTrials }: MapScreenProps) {
+export function MapScreen({ save, scan, today, onEngage, onQuests, onOracle, onForge, onE2e, onTrials, onShop }: MapScreenProps) {
   const roster = useMemo(() => musterRoster(save.dragons), [save.dragons]);
   const [cursor, setCursor] = useState(0);
   const [leaderG, setLeaderG] = useState(false);
@@ -49,13 +52,33 @@ export function MapScreen({ save, scan, onEngage, onQuests, onOracle, onForge, o
     else if (input === 'f') onForge();
     else if (input === 'e') onE2e();
     else if (input === 'v') onTrials();
+    else if (input === 's') onShop();
   });
+
+  // Standing reminders under the banner: sworn pledges and the day's augury.
+  const sworn = pledgeBanner(save.quests, save.pledges ?? []);
+  const augury = save.augury?.date === today ? save.augury : undefined;
 
   const [start, end] = scrollWindow(roster.length, clamped, WINDOW_HEIGHT);
 
   return (
     <Box flexDirection="column" paddingX={1}>
       <RankHeader save={save} scan={scan} />
+      {sworn || augury ? (
+        <Text>
+          {sworn ? (
+            <Text color={COLORS.banner}>
+              {PLEDGE_SIGIL} {sworn}
+            </Text>
+          ) : null}
+          {sworn && augury ? <Text color={COLORS.steel}>   </Text> : null}
+          {augury ? (
+            <Text color={auguryColor(augury.kind)}>
+              {augurySigil(augury.kind)} the oracle's {augury.kind} stands today
+            </Text>
+          ) : null}
+        </Text>
+      ) : null}
       <Box flexDirection="column" marginTop={1}>
         {roster.length === 0 ? (
           <Text color={COLORS.verdant}>
@@ -83,6 +106,7 @@ export function MapScreen({ save, scan, onEngage, onQuests, onOracle, onForge, o
           { key: 'v', does: 'sword-school' },
           { key: 'q', does: 'quests' },
           { key: 'o', does: 'oracle' },
+          { key: 's', does: 'guild shop' },
           { key: 'f', does: 'forge (coverage)' },
           { key: 'e', does: 'e2e patrol' },
           { key: 'ctrl+c', does: 'quit' },

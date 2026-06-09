@@ -3,7 +3,7 @@
  * Pure helpers only; no clocks, no dice, no DOM. Ink components consume these.
  */
 
-import type { DragonSpecies, QuestStatus } from '../types.js';
+import type { AuguryKind, DragonSpecies, QuestStatus } from '../types.js';
 
 // ── Court colors (chalk-compatible names / hex for Ink <Text color=…>) ──────
 
@@ -46,13 +46,21 @@ export function hpBar(hp: number, maxHp: number, width = 16): string {
   return SCALE_FULL.repeat(filled) + SCALE_EMPTY.repeat(span - filled);
 }
 
-/** The color a wound-gauge burns at: green when hale, orange when bloodied, red when desperate. */
+/**
+ * The color a dragon's wound-gauge burns at. Dragons are DANGER, so the gauge
+ * reads like a threat meter: ember-red at full strength, torch-orange once
+ * bloodied, gold as the beast falters, and a verdant sliver only when it is
+ * nearly slain. (Every current caller renders dragon HP; if a friendly
+ * progress bar ever needs the old green-when-full ramp, give it its own
+ * helper rather than reusing this one.)
+ */
 export function hpColor(hp: number, maxHp: number): string {
   const ratio = maxHp > 0 ? hp / maxHp : 0;
-  if (ratio <= 0) return COLORS.parchment;
-  if (ratio < 1 / 3) return COLORS.ember;
-  if (ratio < 2 / 3) return COLORS.torch;
-  return COLORS.verdant;
+  if (hp <= 0 || ratio <= 0) return COLORS.parchment;
+  if (ratio <= 0.15) return COLORS.verdant; // nearly slain — one green sliver of hope
+  if (ratio < 0.45) return COLORS.gold; // faltering
+  if (ratio < 0.8) return COLORS.torch; // bloodied but fighting
+  return COLORS.ember; // full fury
 }
 
 // ── Sigils ───────────────────────────────────────────────────────────────────
@@ -87,6 +95,27 @@ export function questColor(status: QuestStatus): string {
   if (status === 'complete') return COLORS.verdant;
   if (status === 'active') return COLORS.banner;
   return COLORS.steel;
+}
+
+/** The banner pinned beside every pledged quest on the guild board. */
+export const PLEDGE_SIGIL = '⚑';
+
+const AUGURY_SIGILS: Record<AuguryKind, string> = {
+  blessing: '☀',
+  curse: '☠',
+  omen: '☽',
+};
+
+/** A single glyph for the day's augury — sun, skull, or crescent. */
+export function augurySigil(kind: AuguryKind): string {
+  return AUGURY_SIGILS[kind];
+}
+
+/** The light an augury burns by: verdant blessing, ember curse, arcane omen. */
+export function auguryColor(kind: AuguryKind): string {
+  if (kind === 'blessing') return COLORS.verdant;
+  if (kind === 'curse') return COLORS.ember;
+  return COLORS.arcana;
 }
 
 // ── Numerals of the realm ────────────────────────────────────────────────────

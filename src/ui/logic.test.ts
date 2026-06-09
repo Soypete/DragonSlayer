@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type {
+  Augury,
   BattleResult,
   CoverageData,
   Dragon,
@@ -13,7 +14,10 @@ import { newSave } from '../game/state.js';
 import { createVimBuffer, playKeys } from '../vim/engine.js';
 import { TRIALS, newVimProgress } from '../vim/trials.js';
 import {
+  blessSpoils,
+  localDay,
   padSnippets,
+  pledgeBanner,
   questBountyXp,
   chronicleScan,
   chronicleTrial,
@@ -388,5 +392,84 @@ describe('debriefLine — one line of judgment', () => {
   });
   it('consoles the bloodied beyond twice par', () => {
     expect(debriefLine(8, 3, 0)).toContain('bloodied');
+  });
+});
+
+// ── Pledges & the daily augury — guild glue ──────────────────────────────────
+
+describe('localDay — the calendar as the UI reads it', () => {
+  it('formats local YYYY-MM-DD with zero padding', () => {
+    expect(localDay(new Date(2026, 5, 9, 23, 59))).toBe('2026-06-09');
+    expect(localDay(new Date(2026, 0, 1, 0, 0))).toBe('2026-01-01');
+  });
+});
+
+describe('blessSpoils — the blessing rides the spoils path', () => {
+  const spoils: BattleResult = {
+    wpm: 60,
+    accuracy: 0.95,
+    durationMs: 30_000,
+    keystrokes: 200,
+    mistakes: 5,
+    damage: 33,
+    xpEarned: 25,
+  };
+  const auguryOf = (kind: Augury['kind'], date: string): Augury => ({
+    date,
+    kind,
+    edict: 'tests first',
+    proclamation: 'the smoke parts',
+    snapshot: { coveragePct: 50, testFiles: 3, dragonsSlain: 1 },
+    source: 'fallback',
+  });
+
+  it('multiplies battle XP ×1.1 (rounded) under a same-day blessing', () => {
+    const blessed = blessSpoils(spoils, auguryOf('blessing', '2026-06-09'), '2026-06-09');
+    expect(blessed.xpEarned).toBe(28); // round(25 × 1.1)
+    expect(blessed.damage).toBe(spoils.damage); // XP only, never the wound
+  });
+  it('ignores curses, omens, and yesterday\'s blessings', () => {
+    expect(blessSpoils(spoils, auguryOf('curse', '2026-06-09'), '2026-06-09')).toBe(spoils);
+    expect(blessSpoils(spoils, auguryOf('omen', '2026-06-09'), '2026-06-09')).toBe(spoils);
+    expect(blessSpoils(spoils, auguryOf('blessing', '2026-06-08'), '2026-06-09')).toBe(spoils);
+    expect(blessSpoils(spoils, undefined, '2026-06-09')).toBe(spoils);
+  });
+});
+
+describe('pledgeBanner — the standing reminder on the realm map', () => {
+  const deeds: Quest[] = [
+    {
+      id: 'slay:src/moat.ts',
+      kind: 'slay',
+      title: 'Slay Vexmaw',
+      description: '',
+      objectives: [],
+      xpReward: 100,
+      status: 'available',
+    },
+    {
+      id: 'coverage:75',
+      kind: 'coverage',
+      title: 'Three Quarters Warded',
+      description: '',
+      objectives: [],
+      xpReward: 150,
+      status: 'available',
+    },
+  ];
+
+  it('stays silent when nothing is sworn', () => {
+    expect(pledgeBanner(deeds, [])).toBeNull();
+  });
+  it('names the first pledged quest', () => {
+    expect(pledgeBanner(deeds, ['slay:src/moat.ts'])).toBe('Pledged: Slay Vexmaw');
+  });
+  it('counts the rest of the sworn behind the first', () => {
+    expect(pledgeBanner(deeds, ['slay:src/moat.ts', 'coverage:75'])).toBe(
+      'Pledged: Slay Vexmaw (+1 more sworn)',
+    );
+  });
+  it('ignores pledges whose quests left the board', () => {
+    expect(pledgeBanner(deeds, ['ghost:quest'])).toBeNull();
   });
 });
