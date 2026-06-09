@@ -102,6 +102,21 @@ npm run dev:dungeon # play against the practice dungeon
 npm run build       # compile to dist/
 ```
 
+### Where state lives
+
+All game state is plain JSON in your home directory — never inside the game
+repo or the repo you're questing in:
+
+```
+~/.gme/saves/<sha1-of-absolute-repo-path>.json
+```
+
+One file per target repo (XP, gold, rank, dragons, quests, stats). It's written
+after every battle, forge, and scan. To reset a campaign, delete its file (or
+pick "Swear a new oath" on the title screen). The loader tolerates missing or
+corrupt files, so hand-editing is safe-ish — and yes, that means you can give
+yourself gold; the Oracle sees all and judges silently.
+
 Architecture notes live in [ARCHITECTURE.md](ARCHITECTURE.md): pure modules
 (`src/game`, `src/repo`, `src/typing`, `src/ai`, `src/vim`) that only share
 `src/types.ts`, wired together by the Ink UI in `src/ui`.

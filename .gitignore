@@ -1,3 +1,7 @@
 node_modules/
 dist/
 coverage/
+
+# game saves never belong in a repo (they live in ~/.gme/saves, but just in case)
+.gme/
+*.gme-save.json
