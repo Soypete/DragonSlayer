@@ -161,6 +161,58 @@ Standalone vitest project used to develop/play before pointing at a real repo:
 - Verify: `npm run test:coverage` works in that dir and emits
   `coverage/coverage-summary.json`.
 
+### `src/vim/` (sword-school — vim trials)
+
+A k9s-style vim minigame: NO external editor is spawned. The game's own pure
+interpreter handles a POSIX-vi-compatible motion subset inside an Ink sub-window.
+Skills transfer to bare `vi`. Tutorials/hints are a hard requirement: the player
+is a vim novice learning the operator grammar for the first time.
+
+- **engine.ts** — pure modal interpreter over `VimBuffer` (see types.ts):
+  - `createVimBuffer(lines: string[], cursor?: VimCursor): VimBuffer`
+  - `vimKey(buffer, key: string): VimKeyResult` — pure; key is a single char or
+    one of `<esc>`, `<cr>`, `<bs>`. Supported, by curriculum tier:
+    1. `h j k l x`
+    2. `w b e 0 ^ $ gg G` + count prefixes (`3w`, `5j`)
+    3. operators `d y` + motions (`dw`, `d$`, `dd`, `yy`), `p P`
+    4. insert mode `i a I A o O`, change `c` (`cw`, `cc`, `c$`), `<esc>` back
+    5. `f F t T ; ,` and `/term<cr>` `n N`
+    6. text objects `iw aw i" a" i( a( i{ a{` with `c d y` (e.g. `ciw`, `di(`)
+  - `goalMet(buffer, goal: TrialGoal): boolean`
+  - `keysFromString(seq: string): string[]` — parse `"3wciwfoo<esc>"` into keys
+    (used to validate parSolutions and play lesson demos).
+  - Unhandled keys return `handled: false` and leave the buffer unchanged.
+    Cursor clamps to line ends in normal mode (vi behavior). Keep semantics
+    POSIX-vi-faithful for the supported subset; anything else is out of scope.
+- **trials.ts** — the curriculum (modeled on ThePrimeagen's vim-fundamentals
+  ordering) + progression logic:
+  - `export const TRIALS: VimTrial[]` — 4–6 trials per tier, 6 tiers. Buffer
+    contents are short themed code samples (dragons/castles/potions). Every
+    trial has a lesson card a novice can follow, a 3-rung hint ladder, and a
+    parSolution that MUST be validated in tests by replaying it through the
+    engine (`keysFromString` → `vimKey`…) asserting `goalMet` and
+    `keys.length === par`.
+  - `starsFor(keystrokes, par, hintsUsed): 1|2|3`, `trialXp(...)`,
+    `bladeFor(stars): number` (1.0 / 1.2 / 1.5),
+  - `applyTrial(progress: VimProgress | undefined, result: TrialResult): VimProgress`
+    (keeps best result per trial, unlocks tier N+1 when ≥3 trials of tier N have
+    ≥2 stars, sets bladeBuff to the best blade earned this session),
+  - `nextTrial(progress): VimTrial | null`, `newVimProgress(): VimProgress`.
+- **UI integration** (`src/ui/screens/TrialsScreen.tsx` + wiring):
+  - Map screen gains `v` → sword-school. Trial flow per trial: lesson card
+    (demo plays the parSolution-taught keys with explanation) → untimed
+    practice rep → scored attempt (keystroke count + clock visible) → debrief
+    showing the player's keys vs the par solution with a one-line explanation.
+  - `?` during a trial climbs the hint ladder (rung 2+ costs 5 gold each);
+    hintsUsed recorded in the result.
+  - BattleScreen consumes `save.vim.bladeBuff` as a damage multiplier (shown as
+    "⚔ sharpened blade ×1.2"), then resets it to 1 via applyTrial-adjacent
+    helper or inline; persist save after each trial and consumed buff.
+  - Map navigation also accepts `j/k`, `gg/G` (and `/` filter if cheap) so the
+    whole game feels k9s-ish.
+  - Save: `save.vim?: VimProgress` (optional — old saves lack it; reducers
+    already spread unknown fields through).
+
 ## Build order
 
 1. Contracts (done): types.ts, tsconfig, package.json.

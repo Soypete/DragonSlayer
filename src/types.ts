@@ -203,10 +203,98 @@ export interface SaveGame {
   dragons: Dragon[];
   quests: Quest[];
   stats: PlayerStats;
+  /** Sword-school progress; absent on saves from before the vim trials existed. */
+  vim?: VimProgress;
   lastScan?: {
     coveragePct: number;
     timestamp: number;
   };
+}
+
+// ── Vim trials (sword-school) ────────────────────────────────────────────────
+
+export type VimMode = 'normal' | 'insert' | 'operator-pending' | 'search';
+
+export interface VimCursor {
+  row: number;
+  col: number;
+}
+
+export interface VimBuffer {
+  lines: string[];
+  cursor: VimCursor;
+  mode: VimMode;
+  /** 'd' | 'c' | 'y' while an operator awaits its motion. */
+  pendingOperator: string | null;
+  /** Accumulated count prefix (e.g. 3 in `3w`); null when none. */
+  pendingCount: number | null;
+  /** Unnamed register — last yank/delete, for p/P. Linewise when from dd/yy. */
+  register: { text: string[]; linewise: boolean } | null;
+  /** Last `/` search term, for n/N. */
+  searchTerm: string | null;
+  /** In-progress `/` input while mode === 'search'. */
+  searchDraft: string;
+  /** Last f/F/t/T, for ; and , */
+  lastFind: { key: 'f' | 'F' | 't' | 'T'; char: string } | null;
+}
+
+export interface VimKeyResult {
+  buffer: VimBuffer;
+  /** False when the key meant nothing in the current mode (counts as a wasted keystroke). */
+  handled: boolean;
+}
+
+export type TrialGoal =
+  | { kind: 'cursor'; row: number; col: number }
+  | { kind: 'text'; lines: string[] };
+
+export interface VimTrial {
+  id: string;
+  /** 1..6, gated progression. */
+  tier: number;
+  title: string;
+  /** Lesson card shown before the first attempt. */
+  lesson: {
+    heading: string;
+    /** Plain-language explanation a vim novice can follow. */
+    body: string;
+    /** Keystroke sequence demonstrated on the card, e.g. "ciw". */
+    demoKeys: string;
+  };
+  /** Keys/concepts this trial introduces, e.g. ['c', 'iw']. */
+  keysTaught: string[];
+  startLines: string[];
+  startCursor: VimCursor;
+  goal: TrialGoal;
+  /** Keystrokes in the ideal solution. */
+  par: number;
+  /** The ideal sequence, parseable by keysFromString, e.g. "3wciwhydra<esc>". */
+  parSolution: string;
+  /** Hint ladder: nudge → exact keys → full walkthrough. */
+  hints: [string, string, string];
+}
+
+export interface TrialResult {
+  trialId: string;
+  keystrokes: number;
+  par: number;
+  durationMs: number;
+  /** 0..3 rungs of the hint ladder used. */
+  hintsUsed: number;
+  /** 3 = par or better w/o hints, 2 = within 2x par, 1 = completed. */
+  stars: 1 | 2 | 3;
+  xpEarned: number;
+  /** Sharpened-blade damage multiplier earned for the next typing battle (1..1.5). */
+  blade: number;
+}
+
+export interface VimProgress {
+  /** Best result per trial id. */
+  results: Record<string, TrialResult>;
+  /** Highest tier the knight may attempt. */
+  unlockedTier: number;
+  /** Active sharpened-blade buff; consumed by the next battle, 1 = none. */
+  bladeBuff: number;
 }
 
 // ── Command running ──────────────────────────────────────────────────────────
