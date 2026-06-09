@@ -1,0 +1,3 @@
+# Written by scanner.test.ts at test time (keys are machine-absolute paths).
+coverage/
+packages/

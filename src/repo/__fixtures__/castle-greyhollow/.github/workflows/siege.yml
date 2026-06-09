@@ -1,0 +1,8 @@
+name: siege-drill
+on: [push]
+jobs:
+  trial-by-fire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm test

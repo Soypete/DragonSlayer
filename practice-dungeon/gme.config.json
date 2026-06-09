@@ -1,0 +1,7 @@
+{
+  "testCommand": "npm test",
+  "coverageCommand": "npm run test:coverage",
+  "coverageSummaryGlobs": ["coverage/coverage-summary.json"],
+  "sourceGlobs": ["src/**/*.ts"],
+  "excludeGlobs": ["**/node_modules/**", "**/dist/**", "**/*.test.ts", "**/*.d.ts"]
+}

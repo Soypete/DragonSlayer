@@ -1,0 +1,104 @@
+/** The Realm Map — every lair, every dragon, every wound-gauge. */
+
+import React, { useMemo, useState } from 'react';
+import { Box, Text } from 'ink';
+import { useRealmInput } from '../useRealmInput.js';
+import type { Dragon, RepoScan, SaveGame } from '../../types.js';
+import { COLORS, formatPct, hpBar, hpColor, speciesSigil } from '../theme.js';
+import { musterRoster, scrollWindow } from '../logic.js';
+import { RankHeader } from '../components/RankHeader.js';
+import { KeyHints } from '../components/KeyHints.js';
+
+const WINDOW_HEIGHT = 12;
+
+export interface MapScreenProps {
+  save: SaveGame;
+  scan: RepoScan;
+  onEngage: (dragon: Dragon) => void;
+  onQuests: () => void;
+  onOracle: () => void;
+  onForge: () => void;
+  onE2e: () => void;
+}
+
+export function MapScreen({ save, scan, onEngage, onQuests, onOracle, onForge, onE2e }: MapScreenProps) {
+  const roster = useMemo(() => musterRoster(save.dragons), [save.dragons]);
+  const [cursor, setCursor] = useState(0);
+  const clamped = roster.length === 0 ? 0 : Math.min(cursor, roster.length - 1);
+
+  useRealmInput((input, key) => {
+    if (key.upArrow) setCursor(() => (clamped + roster.length - 1) % Math.max(1, roster.length));
+    else if (key.downArrow) setCursor(() => (clamped + 1) % Math.max(1, roster.length));
+    else if (key.return) {
+      const chosen = roster[clamped];
+      if (chosen && !chosen.slain) onEngage(chosen);
+    } else if (input === 'q') onQuests();
+    else if (input === 'o') onOracle();
+    else if (input === 'f') onForge();
+    else if (input === 'e') onE2e();
+  });
+
+  const [start, end] = scrollWindow(roster.length, clamped, WINDOW_HEIGHT);
+
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      <RankHeader save={save} scan={scan} />
+      <Box flexDirection="column" marginTop={1}>
+        {roster.length === 0 ? (
+          <Text color={COLORS.verdant}>
+            The realm map is bare — no dragon dares show its scales. Forge (f) to be sure.
+          </Text>
+        ) : (
+          <>
+            {start > 0 ? <Text color={COLORS.parchment}>  … {start} lairs above …</Text> : null}
+            {roster.slice(start, end).map((dragon, i) => {
+              const index = start + i;
+              const chosen = index === clamped;
+              return <DragonRow key={dragon.id} dragon={dragon} chosen={chosen} />;
+            })}
+            {end < roster.length ? (
+              <Text color={COLORS.parchment}>  … {roster.length - end} lairs below …</Text>
+            ) : null}
+          </>
+        )}
+      </Box>
+      <KeyHints
+        hints={[
+          { key: '↑↓', does: 'roam' },
+          { key: 'enter', does: 'engage' },
+          { key: 'q', does: 'quests' },
+          { key: 'o', does: 'oracle' },
+          { key: 'f', does: 'forge (coverage)' },
+          { key: 'e', does: 'e2e patrol' },
+          { key: 'ctrl+c', does: 'quit' },
+        ]}
+      />
+    </Box>
+  );
+}
+
+function DragonRow({ dragon, chosen }: { dragon: Dragon; chosen: boolean }) {
+  if (dragon.slain) {
+    return (
+      <Text color={COLORS.parchment} dimColor={!chosen}>
+        {chosen ? '❯ ' : '  '}☠ {dragon.name} lies slain over {dragon.file}
+      </Text>
+    );
+  }
+  const weakenedMark = dragon.weakened > 0 ? ` ⚔${Math.round(dragon.weakened * 100)}%` : '';
+  return (
+    <Text>
+      <Text color={chosen ? COLORS.gold : COLORS.steel}>
+        {chosen ? '❯ ' : '  '}
+        {speciesSigil(dragon.species)} {dragon.name}
+      </Text>
+      <Text color={COLORS.parchment}> ({dragon.species}) </Text>
+      <Text color={hpColor(dragon.hp, dragon.maxHp)}>{hpBar(dragon.hp, dragon.maxHp, 14)}</Text>
+      <Text color={COLORS.steel}>
+        {' '}
+        {dragon.hp}/{dragon.maxHp} · {formatPct(dragon.coveragePct)} · {dragon.file}
+      </Text>
+      <Text color={COLORS.torch}>{weakenedMark}</Text>
+    </Text>
+  );
+}

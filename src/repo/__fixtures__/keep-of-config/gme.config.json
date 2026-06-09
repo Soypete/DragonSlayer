@@ -1,0 +1,6 @@
+{
+  "testCommand": "make trial",
+  "coverageCommand": "make trial-by-fire",
+  "e2eCommand": "make siege",
+  "coverageSummaryGlobs": ["artifacts/coverage-summary.json"]
+}
