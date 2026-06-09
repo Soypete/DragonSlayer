@@ -13,6 +13,10 @@ Built with TypeScript + [Ink](https://github.com/vadimdemedes/ink) (React for
 the terminal — the same rendering stack Claude Code uses). Everything runs
 locally: no accounts, no network, no telemetry.
 
+Made with **Claude (Fable 5)** in Claude Code — a game built to sharpen your
+typing speed, vim motions, and code-reading skills while making real codebases
+more reliable.
+
 ## Install & play
 
 Requires **Node 22+** (developed on 24) and npm.
