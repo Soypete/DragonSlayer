@@ -1,7 +1,7 @@
 {
   "name": "gme",
   "version": "0.1.0",
-  "description": "Dragonslayer — a terminal RPG where bugs are dragons and reliable code wins the kingdom",
+  "description": "Dragonslayer \u2014 a terminal RPG where bugs are dragons and reliable code wins the kingdom",
   "type": "module",
   "bin": {
     "gme": "dist/index.js"
@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "fast-glob": "^3.3.2",
     "ink": "^5.2.1",
