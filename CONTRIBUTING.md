@@ -71,6 +71,29 @@ complaints, playtest notes, and tutorial gaps are all first-class quests.
 - Don't commit save files, `coverage/`, or anything from `~/.gme` (the
   `.gitignore` guards this, but see law 4 about what belongs in the repo).
 
+## Adding a language adapter
+
+The realm learns a new tongue (today: js, go, python, rust) through the Guild
+of Interpreters in `src/repo/adapters/`. One adapter = one commit:
+
+1. **The interpreter** — `src/repo/adapters/<tongue>.ts` implementing
+   `LanguageAdapter` from `adapter.ts`: standard-issue commands and globs,
+   the binaries those commands need (`requiredTools`, with install URLs the
+   armory inspector shows players), and a *pure* `parseCoverage(raw, ctx)`
+   that reads the tongue's coverage artifact into `CoverageData` (use
+   `makeMetric`/`emptyMetric` from `metrics.ts`; return `null` on malformed
+   input, never throw).
+2. **Enlist it** — one import and one entry in the `GUILD` array in
+   `adapter.ts`. Detection lives in `src/repo/detect.ts` (add the manifest
+   banner there if the tongue has one).
+3. **A fixture** — `src/repo/__fixtures__/<flavorful-name>/` with real
+   manifest + source files and a *committed* coverage artifact at the
+   fixture root (never inside a `coverage/` dir — the root `.gitignore`
+   eats those), so parser tests run deterministically with no toolchain
+   installed.
+4. **Tests** — parser unit tests against the fixture artifact, plus
+   `resolveConfig` detection tests. See `adapters/go.test.ts` for the shape.
+
 ## Filing issues
 
 Bug reports: include your terminal, Node version, the repo you pointed the

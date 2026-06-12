@@ -4,44 +4,58 @@
  * Before a knight rides into a repository, the quartermaster must know which
  * commands summon the trials (tests), which forge the proof of valor
  * (coverage), and where the siege engines (e2e) are kept. The ledger is
- * resolved in three ways, in order of trust:
+ * resolved in order of trust:
  *
- *   1. A `gme.config.json` scroll left at the repo gate by its stewards.
- *   2. Divination from the repo's own package.json scripts.
- *   3. The old standard-issue kit every squire carries (vitest defaults).
+ *   1. A `gme.config.json` scroll left at the repo gate by its stewards
+ *      (its `coverageFormat` outranks its `language`, which outranks
+ *      detection).
+ *   2. The tongue the Realm Linguist reads off the gate's banners
+ *      (go.mod, Cargo.toml, python manifests, package.json).
+ *   3. For js realms only: divination from package.json scripts.
+ *   4. The sworn interpreter's standard-issue kit for that tongue.
  */
 
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import type { GameConfig } from '../types.js';
+import type { CoverageFormat, GameConfig, RepoLanguage } from '../types.js';
+import { adapterForFormat, adapterForLanguage } from './adapters/adapter.js';
+import { detectLanguage } from './detect.js';
+
+const TONGUES: readonly RepoLanguage[] = ['js', 'go', 'python', 'rust'];
+const DIALECTS: readonly CoverageFormat[] = [
+  'istanbul-summary',
+  'go-coverprofile',
+  'coverage-py-json',
+  'llvm-cov-json',
+];
+
+const isLanguage = (value: unknown): value is RepoLanguage =>
+  typeof value === 'string' && (TONGUES as readonly string[]).includes(value);
+const isFormat = (value: unknown): value is CoverageFormat =>
+  typeof value === 'string' && (DIALECTS as readonly string[]).includes(value);
 
 /** The scroll a repo's stewards may leave at the gate to override divination. */
 export const CONFIG_SCROLL = 'gme.config.json';
 
-/** Standard-issue kit: what every squire carries when the gate bears no scroll. */
-export function defaultConfig(repoPath: string): GameConfig {
+/**
+ * Standard-issue kit: what a squire carries when the gate bears no scroll —
+ * the sworn interpreter's kit for the realm's tongue (js when unstated).
+ */
+export function defaultConfig(
+  repoPath: string,
+  language: RepoLanguage = 'js'
+): GameConfig {
+  const interpreter = adapterForLanguage(language);
   return {
     repoPath,
-    testCommand: 'npx vitest run',
-    coverageCommand: 'npx vitest run --coverage',
-    coverageSummaryGlobs: [
-      'coverage/coverage-summary.json',
-      '**/coverage/coverage-summary.json',
-    ],
-    sourceGlobs: [
-      'src/**/*.{ts,tsx,js,jsx}',
-      'app/**/*.{ts,tsx,js,jsx}',
-      'lib/**/*.{ts,tsx,js,jsx}',
-      // Workspace lands: dragons may lair in any package of a monorepo.
-      '{packages,apps,libs}/*/src/**/*.{ts,tsx,js,jsx}',
-    ],
-    excludeGlobs: [
-      '**/*.test.*',
-      '**/*.spec.*',
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/*.d.ts',
-    ],
+    language,
+    coverageFormat: interpreter.coverageFormat,
+    testCommand: interpreter.defaults.testCommand,
+    coverageCommand: interpreter.defaults.coverageCommand,
+    coverageSummaryGlobs: [...interpreter.defaults.coverageSummaryGlobs],
+    sourceGlobs: [...interpreter.defaults.sourceGlobs],
+    excludeGlobs: [...interpreter.defaults.excludeGlobs],
+    testGlobs: [...interpreter.defaults.testGlobs],
   };
 }
 
@@ -67,8 +81,24 @@ export function guessCommandsFromScripts(
     divined.coverageCommand = 'npm run test:coverage';
   } else if (has('coverage')) {
     divined.coverageCommand = 'npm run coverage';
+  } else if (has('test')) {
+    // No coverage script at the gate — sniff the test script's content
+    // (read its entrails) for a runner we know how to coax proof out of.
+    // Every divined command must emit istanbul's coverage-summary.json:
+    // it is the only dialect the sworn js interpreter reads.
+    const trial = (scripts.test as string).toLowerCase();
+    if (trial.includes('jest')) {
+      // jest carries istanbul within; json-summary makes it write the
+      // coverage-summary.json the interpreter expects.
+      divined.coverageCommand = 'npx jest --coverage --coverageReporters=json-summary';
+    } else if (trial.includes('node --test') || trial.includes('node:test')) {
+      // node's native runner speaks no istanbul of its own, so c8 wraps the
+      // trial and transcribes it into json-summary form.
+      divined.coverageCommand = 'npx c8 --reporter=json-summary node --test';
+    }
+    // else (vitest or an unknown runner): divine nothing — the
+    // standard-issue `npx vitest run --coverage` already covers it.
   }
-  // else: fall back to the standard-issue `npx vitest run --coverage`.
 
   if (has('test')) {
     divined.testCommand = 'npm test';
@@ -98,6 +128,9 @@ export function mergeScrollOverDefaults(
   }
   if (isStringArray(scroll.sourceGlobs)) merged.sourceGlobs = scroll.sourceGlobs;
   if (isStringArray(scroll.excludeGlobs)) merged.excludeGlobs = scroll.excludeGlobs;
+  if (isStringArray(scroll.testGlobs)) merged.testGlobs = scroll.testGlobs;
+  if (isLanguage(scroll.language)) merged.language = scroll.language;
+  if (isFormat(scroll.coverageFormat)) merged.coverageFormat = scroll.coverageFormat;
   if (isStringArray(scroll.packages)) merged.packages = scroll.packages;
   if (isStringArray(scroll.excludePackages)) {
     merged.excludePackages = scroll.excludePackages;
@@ -129,16 +162,26 @@ async function readJsonScroll(
 
 /**
  * Resolve the full game config for a target repo:
- * scroll at the gate > package.json divination > standard-issue kit.
+ * scroll at the gate > detected tongue's kit > package.json divination (js).
  */
 export async function resolveConfig(repoPath: string): Promise<GameConfig> {
   const absRepo = path.resolve(repoPath);
-  const defaults = defaultConfig(absRepo);
+  const banners = await readdir(absRepo).catch(() => [] as string[]);
+  const detected = detectLanguage(banners);
 
   const scroll = await readJsonScroll(path.join(absRepo, CONFIG_SCROLL));
   if (scroll) {
-    return mergeScrollOverDefaults(defaults, scroll);
+    // Order of trust: the scroll's dialect > the scroll's tongue > detection.
+    const fromFormat = isFormat(scroll.coverageFormat)
+      ? (adapterForFormat(scroll.coverageFormat)?.language ?? null)
+      : null;
+    const tongue =
+      fromFormat ?? (isLanguage(scroll.language) ? scroll.language : detected);
+    return mergeScrollOverDefaults(defaultConfig(absRepo, tongue), scroll);
   }
+
+  const defaults = defaultConfig(absRepo, detected);
+  if (detected !== 'js') return defaults;
 
   const pkg = await readJsonScroll(path.join(absRepo, 'package.json'));
   const scripts =

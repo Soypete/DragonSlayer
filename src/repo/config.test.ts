@@ -73,6 +73,53 @@ describe('guessCommandsFromScripts (pure divination)', () => {
   });
 });
 
+describe('the Realm Linguist guides the ledger', () => {
+  it('hears go first at the polyglot tower-of-babel gate', async () => {
+    const cfg = await resolveConfig(fixture('tower-of-babel'));
+    expect(cfg.language).toBe('go');
+    // A non-js realm gets no package.json divination, even with scripts present.
+    expect(cfg.testCommand).not.toBe('npm test');
+  });
+
+  it('keeps js realms exactly as before', async () => {
+    const cfg = await resolveConfig(fixture('castle-greyhollow'));
+    expect(cfg.language).toBe('js');
+    expect(cfg.coverageFormat).toBe('istanbul-summary');
+    expect(cfg.testGlobs.length).toBeGreaterThan(0);
+  });
+
+  it('a bare barrow still defaults to the js kit', async () => {
+    const cfg = await resolveConfig(fixture('empty-barrow'));
+    expect(cfg.language).toBe('js');
+    expect(cfg.coverageFormat).toBe('istanbul-summary');
+  });
+});
+
+describe('the scroll may declare the tongue outright', () => {
+  const defaults = defaultConfig('/sworn/realm');
+
+  it('honors a declared language', () => {
+    expect(mergeScrollOverDefaults(defaults, { language: 'python' }).language).toBe(
+      'python'
+    );
+  });
+
+  it('rejects a tongue nobody speaks', () => {
+    expect(mergeScrollOverDefaults(defaults, { language: 'cobol' }).language).toBe(
+      'js'
+    );
+  });
+
+  it('honors a declared dialect and custom drill yards', () => {
+    const merged = mergeScrollOverDefaults(defaults, {
+      coverageFormat: 'coverage-py-json',
+      testGlobs: ['drills/**'],
+    });
+    expect(merged.coverageFormat).toBe('coverage-py-json');
+    expect(merged.testGlobs).toEqual(['drills/**']);
+  });
+});
+
 describe('mergeScrollOverDefaults (pure merging)', () => {
   const defaults = defaultConfig('/sworn/realm');
 
@@ -110,5 +157,68 @@ describe('mergeScrollOverDefaults (pure merging)', () => {
     });
     expect(merged.packages).toBeUndefined();
     expect(merged.excludePackages).toBeUndefined();
+  });
+});
+
+describe('the Quartermaster sniffs the test script for a known runner', () => {
+  it('divines a jest coverage command from a jest trial', () => {
+    const divined = guessCommandsFromScripts({ test: 'jest --runInBand' });
+    expect(divined.testCommand).toBe('npm test');
+    expect(divined.coverageCommand).toBe(
+      'npx jest --coverage --coverageReporters=json-summary'
+    );
+  });
+
+  it('wraps the node native runner in c8 when "node --test" appears', () => {
+    const divined = guessCommandsFromScripts({ test: 'node --test ./test' });
+    expect(divined.coverageCommand).toBe(
+      'npx c8 --reporter=json-summary node --test'
+    );
+  });
+
+  it('recognizes the node:test spelling too', () => {
+    const divined = guessCommandsFromScripts({
+      test: 'glob -c "node --import tsx" node:test',
+    });
+    expect(divined.coverageCommand).toBe(
+      'npx c8 --reporter=json-summary node --test'
+    );
+  });
+});
+
+describe('explicit coverage scripts outrank the sniffed runner', () => {
+  it('test:coverage wins even when the trial smells of jest', () => {
+    const divined = guessCommandsFromScripts({
+      test: 'jest',
+      'test:coverage': 'jest --coverage',
+    });
+    expect(divined.coverageCommand).toBe('npm run test:coverage');
+  });
+
+  it('a lone coverage script wins over a node --test trial', () => {
+    const divined = guessCommandsFromScripts({
+      test: 'node --test',
+      coverage: 'c8 node --test',
+    });
+    expect(divined.coverageCommand).toBe('npm run coverage');
+  });
+});
+
+describe('the sniff stays its hand when the kit already serves', () => {
+  it('a vitest trial divines no extra coverage command', () => {
+    const divined = guessCommandsFromScripts({ test: 'vitest run' });
+    expect(divined.testCommand).toBe('npm test');
+    expect(divined.coverageCommand).toBeUndefined();
+  });
+
+  it('an unknown runner divines no coverage command either', () => {
+    const divined = guessCommandsFromScripts({ test: 'mocha spec/' });
+    expect(divined.coverageCommand).toBeUndefined();
+  });
+
+  it('ignores blank and non-string test scripts entirely', () => {
+    expect(guessCommandsFromScripts({ test: '   ' })).toEqual({});
+    expect(guessCommandsFromScripts({ test: 42 })).toEqual({});
+    expect(guessCommandsFromScripts({ test: ['jest'] })).toEqual({});
   });
 });

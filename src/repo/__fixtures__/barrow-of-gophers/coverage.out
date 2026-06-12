@@ -1,0 +1,5 @@
+mode: set
+github.com/realm/barrow-of-gophers/lair.go:11.24,14.2 2 1
+github.com/realm/barrow-of-gophers/lair.go:17.25,20.2 2 0
+github.com/realm/barrow-of-gophers/hoard.go:9.39,12.2 2 1
+github.com/realm/barrow-of-gophers/hoard.go:15.36,19.2 3 0

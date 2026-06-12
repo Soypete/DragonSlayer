@@ -14,6 +14,7 @@ import { newSave } from '../game/state.js';
 import { createVimBuffer, playKeys } from '../vim/engine.js';
 import { TRIALS, newVimProgress } from '../vim/trials.js';
 import {
+  armoryWarnings,
   blessSpoils,
   localDay,
   padSnippets,
@@ -97,6 +98,28 @@ function questOf(id: string, status: Quest['status'], xpReward = 100): Quest {
 }
 
 // ── padSnippets ──────────────────────────────────────────────────────────────
+
+describe('armoryWarnings — naming the bare racks', () => {
+  it('merges duties for one missing blade and keeps the install pointer', () => {
+    const lines = armoryWarnings([
+      { binary: 'cargo', installUrl: 'https://rustup.rs', neededFor: 'tests' },
+      { binary: 'cargo', installUrl: 'https://rustup.rs', neededFor: 'coverage' },
+    ]);
+    expect(lines).toEqual([
+      'cargo not found in the armory — tests & coverage will fail. Install: https://rustup.rs',
+    ]);
+  });
+
+  it('omits the pointer when none is known', () => {
+    expect(
+      armoryWarnings([{ binary: 'pixi', installUrl: '', neededFor: 'tests' }])
+    ).toEqual(['pixi not found in the armory — tests will fail']);
+  });
+
+  it('stays silent over a stocked armory', () => {
+    expect(armoryWarnings([])).toEqual([]);
+  });
+});
 
 describe('padSnippets — the scroll satchel', () => {
   const scroll = (text: string): TypingSnippet => ({ text, source: 'src/moat.ts:1', kind: 'code' });

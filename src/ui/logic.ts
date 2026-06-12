@@ -12,6 +12,7 @@ import type {
   Quest,
   RepoScan,
   SaveGame,
+  ToolRequirement,
   TrialGoal,
   TrialResult,
   TypingSnippet,
@@ -27,6 +28,25 @@ import { applyTrial, bladeFor, starsFor, trialXp } from '../vim/trials.js';
 
 /** How many scrolls the knight transcribes per battle. */
 export const SCROLLS_PER_BATTLE = 5;
+
+/**
+ * One parchment line per blade missing from the armory, duties merged
+ * ("tests & coverage") and the first known install pointer kept. Pure.
+ */
+export function armoryWarnings(missing: ToolRequirement[]): string[] {
+  const racks = new Map<string, { duties: string[]; url: string }>();
+  for (const tool of missing) {
+    const rack = racks.get(tool.binary) ?? { duties: [], url: tool.installUrl };
+    if (!rack.duties.includes(tool.neededFor)) rack.duties.push(tool.neededFor);
+    if (rack.url === '') rack.url = tool.installUrl;
+    racks.set(tool.binary, rack);
+  }
+  return [...racks.entries()].map(
+    ([binary, { duties, url }]) =>
+      `${binary} not found in the armory — ${duties.join(' & ')} will fail` +
+      (url === '' ? '' : `. Install: ${url}`)
+  );
+}
 
 /**
  * Pad a battle's scroll satchel: snippets harvested from the dragon's own

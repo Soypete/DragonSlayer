@@ -15,59 +15,28 @@ import type {
   CiInfo,
   CoverageData,
   CoverageFileStats,
-  CoverageMetric,
   Dragon,
   DragonSpecies,
   GameConfig,
   PlaywrightInfo,
   RepoScan,
 } from '../types.js';
+import { adapterForFormat, adapterForLanguage } from './adapters/adapter.js';
+import { normalizeCoverageSummary } from './adapters/istanbul.js';
+import { parseGoModulePath, toRepoRelativePosix } from './adapters/paths.js';
+import { auditArmory, requiredToolsFor } from './toolchain.js';
+
+// The old tongue's helpers moved to the Guild of Interpreters (adapters/);
+// re-exported here so long-standing callers keep their maps unredrawn.
+export { normalizeCoverageSummary, toRepoRelativePosix };
 
 /** Lands no honest dragon would lair in (and no cartographer maps). */
 const FORBIDDEN_LANDS = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
-
-/** Where the castle guard tends to drill. */
-const TEST_GLOBS = [
-  '**/*.test.*',
-  '**/*.spec.*',
-  '**/__tests__/**/*.{ts,tsx,js,jsx}',
-  'test/**/*.{ts,tsx,js,jsx}',
-  'tests/**/*.{ts,tsx,js,jsx}',
-];
 
 /** How a dragon is christened — supplied by the caller so repo/ never imports game/. */
 export type DragonNamer = (file: string) => { name: string; species: DragonSpecies };
 
 // ── Coverage normalization (pure) ────────────────────────────────────────────
-
-function asFiniteNumber(value: unknown): number {
-  // Istanbul writes "Unknown" for empty totals; treat anything unholy as 0.
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function readMetric(raw: unknown): CoverageMetric {
-  const m = (raw ?? {}) as Record<string, unknown>;
-  return {
-    total: asFiniteNumber(m.total),
-    covered: asFiniteNumber(m.covered),
-    pct: asFiniteNumber(m.pct),
-  };
-}
-
-const looksRooted = (p: string): boolean =>
-  path.posix.isAbsolute(p) || /^[A-Za-z]:\//.test(p);
-
-/** Translate any path the summary speaks (absolute, windows) into repo-relative posix. */
-export function toRepoRelativePosix(key: string, repoPath: string): string {
-  const slashed = key.replace(/\\/g, '/');
-  const rootSlashed = repoPath.replace(/\\/g, '/');
-  const root = looksRooted(rootSlashed)
-    ? rootSlashed.replace(/\/+$/, '')
-    : path.resolve(repoPath).replace(/\\/g, '/');
-  const rel = looksRooted(slashed) ? path.posix.relative(root, slashed) : slashed;
-  return rel.replace(/^\.\//, '');
-}
 
 /**
  * The package a summary testifies for: the grandparent of the summary file
@@ -78,52 +47,6 @@ export function summaryPackageRoot(summaryRel: string): string {
   const outputDir = path.posix.dirname(summaryRel.replace(/\\/g, '/'));
   const pkg = path.posix.dirname(outputDir);
   return pkg === '.' || pkg === '/' ? '' : pkg;
-}
-
-/**
- * Normalize a raw istanbul json-summary document into CoverageData.
- * Pure: takes the parsed JSON, the repo root, and provenance as params.
- * `packageRoot` prefixes relative keys so a package's `src/foo.ts` lands at
- * `packages/api/src/foo.ts`; absolute keys are relativized against the repo
- * root and need no prefix.
- */
-export function normalizeCoverageSummary(
-  raw: Record<string, unknown>,
-  repoPath: string,
-  source: string,
-  generatedAt: number,
-  packageRoot = ''
-): CoverageData {
-  const files: CoverageFileStats[] = [];
-  let totals: CoverageData['totals'] = {
-    lines: readMetric(undefined),
-    statements: readMetric(undefined),
-    functions: readMetric(undefined),
-    branches: readMetric(undefined),
-  };
-
-  for (const [key, value] of Object.entries(raw)) {
-    const entry = (value ?? {}) as Record<string, unknown>;
-    const stats = {
-      lines: readMetric(entry.lines),
-      statements: readMetric(entry.statements),
-      functions: readMetric(entry.functions),
-      branches: readMetric(entry.branches),
-    };
-    if (key === 'total') {
-      totals = stats;
-    } else {
-      const rel = toRepoRelativePosix(key, repoPath);
-      const placed =
-        looksRooted(key.replace(/\\/g, '/')) || packageRoot === ''
-          ? rel
-          : path.posix.join(packageRoot, rel);
-      files.push({ path: placed, ...stats });
-    }
-  }
-
-  files.sort((a, b) => a.path.localeCompare(b.path));
-  return { files, totals, source, generatedAt };
 }
 
 /**
@@ -199,6 +122,10 @@ async function resolvePackageSet(
 }
 
 async function unearthCoverage(cfg: GameConfig): Promise<CoverageData | null> {
+  // No interpreter for the dialect yet — no proof can be read.
+  const interpreter = adapterForFormat(cfg.coverageFormat);
+  if (!interpreter) return null;
+
   const candidates = await fg(cfg.coverageSummaryGlobs, {
     cwd: cfg.repoPath,
     ignore: FORBIDDEN_LANDS,
@@ -212,6 +139,15 @@ async function unearthCoverage(cfg: GameConfig): Promise<CoverageData | null> {
     resolvePackageSet(cfg.excludePackages, cfg.repoPath),
   ]);
 
+  // Go coverprofiles file paths under the module's import path; hand the
+  // interpreter the module directive so it can strip the prefix.
+  const goModulePath =
+    cfg.coverageFormat === 'go-coverprofile'
+      ? (parseGoModulePath(
+          await readFile(path.join(cfg.repoPath, 'go.mod'), 'utf8').catch(() => '')
+        ) ?? undefined)
+      : undefined;
+
   // Every proof from every armory joins the realm — not just the freshest.
   const parts = await Promise.all(
     candidates
@@ -222,17 +158,14 @@ async function unearthCoverage(cfg: GameConfig): Promise<CoverageData | null> {
         try {
           const abs = path.join(cfg.repoPath, rel);
           const s = await stat(abs);
-          const raw = JSON.parse(await readFile(abs, 'utf8')) as Record<
-            string,
-            unknown
-          >;
-          return normalizeCoverageSummary(
-            raw,
-            cfg.repoPath,
-            rel,
-            s.mtimeMs,
-            summaryPackageRoot(rel)
-          );
+          const raw = await readFile(abs, 'utf8');
+          return interpreter.parseCoverage(raw, {
+            repoPath: cfg.repoPath,
+            source: rel,
+            generatedAt: s.mtimeMs,
+            packageRoot: summaryPackageRoot(rel),
+            goModulePath,
+          });
         } catch {
           // Forged, water-damaged, or vanished proof — better none than lies.
           return null;
@@ -278,7 +211,9 @@ async function inspectCastleWatch(repoPath: string): Promise<CiInfo> {
   for (const wf of workflows) {
     try {
       const scroll = await readFile(path.join(repoPath, wf), 'utf8');
-      if (/\b(test|vitest|jest|playwright)\b/i.test(scroll)) {
+      // `go test` and `cargo test` already match \btest\b; pytest does not
+      // (no word boundary inside "pytest"), so it gets its own banner.
+      if (/\b(test|vitest|jest|playwright|pytest)\b/i.test(scroll)) {
         hasTestJob = true;
         break;
       }
@@ -293,17 +228,20 @@ async function inspectCastleWatch(repoPath: string): Promise<CiInfo> {
  * Survey the whole realm: sources, tests, coverage proof, siege engines, watch.
  */
 export async function scanRepo(cfg: GameConfig): Promise<RepoScan> {
-  const [sourceFiles, testFiles, coverage, playwright, ci] = await Promise.all([
-    fg(cfg.sourceGlobs, {
-      cwd: cfg.repoPath,
-      ignore: [...cfg.excludeGlobs, ...FORBIDDEN_LANDS],
-      unique: true,
-    }),
-    fg(TEST_GLOBS, { cwd: cfg.repoPath, ignore: FORBIDDEN_LANDS, unique: true }),
-    unearthCoverage(cfg),
-    scryPlaywright(cfg.repoPath),
-    inspectCastleWatch(cfg.repoPath),
-  ]);
+  const interpreter = adapterForLanguage(cfg.language);
+  const [sourceFiles, testFiles, coverage, playwright, ci, missingTools] =
+    await Promise.all([
+      fg(cfg.sourceGlobs, {
+        cwd: cfg.repoPath,
+        ignore: [...cfg.excludeGlobs, ...FORBIDDEN_LANDS],
+        unique: true,
+      }),
+      fg(cfg.testGlobs, { cwd: cfg.repoPath, ignore: FORBIDDEN_LANDS, unique: true }),
+      unearthCoverage(cfg),
+      scryPlaywright(cfg.repoPath),
+      inspectCastleWatch(cfg.repoPath),
+      auditArmory(requiredToolsFor(cfg, interpreter.requiredTools)),
+    ]);
 
   return {
     repoPath: cfg.repoPath,
@@ -313,6 +251,8 @@ export async function scanRepo(cfg: GameConfig): Promise<RepoScan> {
     sourceFiles: sourceFiles.sort(),
     testFiles: testFiles.sort(),
     scannedAt: Date.now(),
+    language: cfg.language,
+    missingTools,
   };
 }
 
