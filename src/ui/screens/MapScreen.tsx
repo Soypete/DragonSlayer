@@ -5,7 +5,7 @@ import { Box, Text } from 'ink';
 import { useRealmInput } from '../useRealmInput.js';
 import type { Dragon, RepoScan, SaveGame } from '../../types.js';
 import { COLORS, PLEDGE_SIGIL, auguryColor, augurySigil, formatPct, hpBar, hpColor, speciesSigil } from '../theme.js';
-import { musterRoster, pledgeBanner, scrollWindow } from '../logic.js';
+import { armoryWarnings, musterRoster, pledgeBanner, scrollWindow } from '../logic.js';
 import { RankHeader } from '../components/RankHeader.js';
 import { KeyHints } from '../components/KeyHints.js';
 
@@ -61,9 +61,16 @@ export function MapScreen({ save, scan, today, onEngage, onQuests, onOracle, onF
 
   const [start, end] = scrollWindow(roster.length, clamped, WINDOW_HEIGHT);
 
+  const bareRacks = armoryWarnings(scan.missingTools ?? []);
+
   return (
     <Box flexDirection="column" paddingX={1}>
       <RankHeader save={save} scan={scan} />
+      {bareRacks.map((warning) => (
+        <Text key={warning} color={COLORS.torch}>
+          ⚒ {warning}
+        </Text>
+      ))}
       {sworn || augury ? (
         <Text>
           {sworn ? (

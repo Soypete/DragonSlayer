@@ -427,3 +427,39 @@ describe('buildDragons takes the census', () => {
     expect(buildDragons(scan, namer)).toEqual(buildDragons(scan, namer));
   });
 });
+
+describe('the armory inspector rides with the cartographer', () => {
+  it('reports a bare rack for a command no smith ever forged', async () => {
+    const cfg = {
+      ...defaultConfig(CASTLE),
+      testCommand: 'gme-no-such-binary-9000 test',
+    };
+    const scan = await scanRepo(cfg);
+    expect(scan.missingTools?.map((t) => t.binary)).toContain(
+      'gme-no-such-binary-9000'
+    );
+    expect(scan.language).toBe('js');
+  });
+
+  it('stays silent over the stocked standard-issue kit', async () => {
+    const scan = await surveyCastle();
+    expect(scan.missingTools).toEqual([]);
+  });
+});
+
+describe('the guard drills where the ledger says (testGlobs)', () => {
+  it('honors custom drill yards from the config', async () => {
+    const cfg = { ...defaultConfig(CASTLE), testGlobs: ['e2e/**/*.spec.*'] };
+    const scan = await scanRepo(cfg);
+    expect(scan.testFiles).toEqual(['e2e/siege.spec.ts']);
+  });
+});
+
+describe('the castle watch knows foreign drills', () => {
+  it('recognizes a pytest workflow as a test job', async () => {
+    const babel = path.join(here, '__fixtures__', 'tower-of-babel');
+    const scan = await scanRepo(defaultConfig(babel));
+    expect(scan.ci.workflows).toEqual(['.github/workflows/drills.yml']);
+    expect(scan.ci.hasTestJob).toBe(true);
+  });
+});

@@ -4,17 +4,35 @@
  * Before a knight rides into a repository, the quartermaster must know which
  * commands summon the trials (tests), which forge the proof of valor
  * (coverage), and where the siege engines (e2e) are kept. The ledger is
- * resolved in three ways, in order of trust:
+ * resolved in order of trust:
  *
- *   1. A `gme.config.json` scroll left at the repo gate by its stewards.
- *   2. Divination from the repo's own package.json scripts.
- *   3. The old standard-issue kit every squire carries (vitest defaults).
+ *   1. A `gme.config.json` scroll left at the repo gate by its stewards
+ *      (its `coverageFormat` outranks its `language`, which outranks
+ *      detection).
+ *   2. The tongue the Realm Linguist reads off the gate's banners
+ *      (go.mod, Cargo.toml, python manifests, package.json).
+ *   3. For js realms only: divination from package.json scripts.
+ *   4. The sworn interpreter's standard-issue kit for that tongue.
  */
 
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import type { GameConfig, RepoLanguage } from '../types.js';
-import { adapterForLanguage } from './adapters/adapter.js';
+import type { CoverageFormat, GameConfig, RepoLanguage } from '../types.js';
+import { adapterForFormat, adapterForLanguage } from './adapters/adapter.js';
+import { detectLanguage } from './detect.js';
+
+const TONGUES: readonly RepoLanguage[] = ['js', 'go', 'python', 'rust'];
+const DIALECTS: readonly CoverageFormat[] = [
+  'istanbul-summary',
+  'go-coverprofile',
+  'coverage-py-json',
+  'llvm-cov-json',
+];
+
+const isLanguage = (value: unknown): value is RepoLanguage =>
+  typeof value === 'string' && (TONGUES as readonly string[]).includes(value);
+const isFormat = (value: unknown): value is CoverageFormat =>
+  typeof value === 'string' && (DIALECTS as readonly string[]).includes(value);
 
 /** The scroll a repo's stewards may leave at the gate to override divination. */
 export const CONFIG_SCROLL = 'gme.config.json';
@@ -94,6 +112,9 @@ export function mergeScrollOverDefaults(
   }
   if (isStringArray(scroll.sourceGlobs)) merged.sourceGlobs = scroll.sourceGlobs;
   if (isStringArray(scroll.excludeGlobs)) merged.excludeGlobs = scroll.excludeGlobs;
+  if (isStringArray(scroll.testGlobs)) merged.testGlobs = scroll.testGlobs;
+  if (isLanguage(scroll.language)) merged.language = scroll.language;
+  if (isFormat(scroll.coverageFormat)) merged.coverageFormat = scroll.coverageFormat;
   if (isStringArray(scroll.packages)) merged.packages = scroll.packages;
   if (isStringArray(scroll.excludePackages)) {
     merged.excludePackages = scroll.excludePackages;
@@ -125,16 +146,26 @@ async function readJsonScroll(
 
 /**
  * Resolve the full game config for a target repo:
- * scroll at the gate > package.json divination > standard-issue kit.
+ * scroll at the gate > detected tongue's kit > package.json divination (js).
  */
 export async function resolveConfig(repoPath: string): Promise<GameConfig> {
   const absRepo = path.resolve(repoPath);
-  const defaults = defaultConfig(absRepo);
+  const banners = await readdir(absRepo).catch(() => [] as string[]);
+  const detected = detectLanguage(banners);
 
   const scroll = await readJsonScroll(path.join(absRepo, CONFIG_SCROLL));
   if (scroll) {
-    return mergeScrollOverDefaults(defaults, scroll);
+    // Order of trust: the scroll's dialect > the scroll's tongue > detection.
+    const fromFormat = isFormat(scroll.coverageFormat)
+      ? (adapterForFormat(scroll.coverageFormat)?.language ?? null)
+      : null;
+    const tongue =
+      fromFormat ?? (isLanguage(scroll.language) ? scroll.language : detected);
+    return mergeScrollOverDefaults(defaultConfig(absRepo, tongue), scroll);
   }
+
+  const defaults = defaultConfig(absRepo, detected);
+  if (detected !== 'js') return defaults;
 
   const pkg = await readJsonScroll(path.join(absRepo, 'package.json'));
   const scripts =

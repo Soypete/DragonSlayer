@@ -1,0 +1,8 @@
+name: drills
+on: [push]
+jobs:
+  serpent-drills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest

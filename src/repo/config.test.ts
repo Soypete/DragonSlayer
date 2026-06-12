@@ -73,6 +73,53 @@ describe('guessCommandsFromScripts (pure divination)', () => {
   });
 });
 
+describe('the Realm Linguist guides the ledger', () => {
+  it('hears go first at the polyglot tower-of-babel gate', async () => {
+    const cfg = await resolveConfig(fixture('tower-of-babel'));
+    expect(cfg.language).toBe('go');
+    // A non-js realm gets no package.json divination, even with scripts present.
+    expect(cfg.testCommand).not.toBe('npm test');
+  });
+
+  it('keeps js realms exactly as before', async () => {
+    const cfg = await resolveConfig(fixture('castle-greyhollow'));
+    expect(cfg.language).toBe('js');
+    expect(cfg.coverageFormat).toBe('istanbul-summary');
+    expect(cfg.testGlobs.length).toBeGreaterThan(0);
+  });
+
+  it('a bare barrow still defaults to the js kit', async () => {
+    const cfg = await resolveConfig(fixture('empty-barrow'));
+    expect(cfg.language).toBe('js');
+    expect(cfg.coverageFormat).toBe('istanbul-summary');
+  });
+});
+
+describe('the scroll may declare the tongue outright', () => {
+  const defaults = defaultConfig('/sworn/realm');
+
+  it('honors a declared language', () => {
+    expect(mergeScrollOverDefaults(defaults, { language: 'python' }).language).toBe(
+      'python'
+    );
+  });
+
+  it('rejects a tongue nobody speaks', () => {
+    expect(mergeScrollOverDefaults(defaults, { language: 'cobol' }).language).toBe(
+      'js'
+    );
+  });
+
+  it('honors a declared dialect and custom drill yards', () => {
+    const merged = mergeScrollOverDefaults(defaults, {
+      coverageFormat: 'coverage-py-json',
+      testGlobs: ['drills/**'],
+    });
+    expect(merged.coverageFormat).toBe('coverage-py-json');
+    expect(merged.testGlobs).toEqual(['drills/**']);
+  });
+});
+
 describe('mergeScrollOverDefaults (pure merging)', () => {
   const defaults = defaultConfig('/sworn/realm');
 

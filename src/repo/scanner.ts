@@ -21,8 +21,10 @@ import type {
   PlaywrightInfo,
   RepoScan,
 } from '../types.js';
+import { adapterForFormat, adapterForLanguage } from './adapters/adapter.js';
 import { normalizeCoverageSummary } from './adapters/istanbul.js';
-import { toRepoRelativePosix } from './adapters/paths.js';
+import { parseGoModulePath, toRepoRelativePosix } from './adapters/paths.js';
+import { auditArmory, requiredToolsFor } from './toolchain.js';
 
 // The old tongue's helpers moved to the Guild of Interpreters (adapters/);
 // re-exported here so long-standing callers keep their maps unredrawn.
@@ -30,15 +32,6 @@ export { normalizeCoverageSummary, toRepoRelativePosix };
 
 /** Lands no honest dragon would lair in (and no cartographer maps). */
 const FORBIDDEN_LANDS = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
-
-/** Where the castle guard tends to drill. */
-const TEST_GLOBS = [
-  '**/*.test.*',
-  '**/*.spec.*',
-  '**/__tests__/**/*.{ts,tsx,js,jsx}',
-  'test/**/*.{ts,tsx,js,jsx}',
-  'tests/**/*.{ts,tsx,js,jsx}',
-];
 
 /** How a dragon is christened — supplied by the caller so repo/ never imports game/. */
 export type DragonNamer = (file: string) => { name: string; species: DragonSpecies };
@@ -129,6 +122,10 @@ async function resolvePackageSet(
 }
 
 async function unearthCoverage(cfg: GameConfig): Promise<CoverageData | null> {
+  // No interpreter for the dialect yet — no proof can be read.
+  const interpreter = adapterForFormat(cfg.coverageFormat);
+  if (!interpreter) return null;
+
   const candidates = await fg(cfg.coverageSummaryGlobs, {
     cwd: cfg.repoPath,
     ignore: FORBIDDEN_LANDS,
@@ -142,6 +139,15 @@ async function unearthCoverage(cfg: GameConfig): Promise<CoverageData | null> {
     resolvePackageSet(cfg.excludePackages, cfg.repoPath),
   ]);
 
+  // Go coverprofiles file paths under the module's import path; hand the
+  // interpreter the module directive so it can strip the prefix.
+  const goModulePath =
+    cfg.coverageFormat === 'go-coverprofile'
+      ? (parseGoModulePath(
+          await readFile(path.join(cfg.repoPath, 'go.mod'), 'utf8').catch(() => '')
+        ) ?? undefined)
+      : undefined;
+
   // Every proof from every armory joins the realm — not just the freshest.
   const parts = await Promise.all(
     candidates
@@ -152,17 +158,14 @@ async function unearthCoverage(cfg: GameConfig): Promise<CoverageData | null> {
         try {
           const abs = path.join(cfg.repoPath, rel);
           const s = await stat(abs);
-          const raw = JSON.parse(await readFile(abs, 'utf8')) as Record<
-            string,
-            unknown
-          >;
-          return normalizeCoverageSummary(
-            raw,
-            cfg.repoPath,
-            rel,
-            s.mtimeMs,
-            summaryPackageRoot(rel)
-          );
+          const raw = await readFile(abs, 'utf8');
+          return interpreter.parseCoverage(raw, {
+            repoPath: cfg.repoPath,
+            source: rel,
+            generatedAt: s.mtimeMs,
+            packageRoot: summaryPackageRoot(rel),
+            goModulePath,
+          });
         } catch {
           // Forged, water-damaged, or vanished proof — better none than lies.
           return null;
@@ -208,7 +211,9 @@ async function inspectCastleWatch(repoPath: string): Promise<CiInfo> {
   for (const wf of workflows) {
     try {
       const scroll = await readFile(path.join(repoPath, wf), 'utf8');
-      if (/\b(test|vitest|jest|playwright)\b/i.test(scroll)) {
+      // `go test` and `cargo test` already match \btest\b; pytest does not
+      // (no word boundary inside "pytest"), so it gets its own banner.
+      if (/\b(test|vitest|jest|playwright|pytest)\b/i.test(scroll)) {
         hasTestJob = true;
         break;
       }
@@ -223,17 +228,20 @@ async function inspectCastleWatch(repoPath: string): Promise<CiInfo> {
  * Survey the whole realm: sources, tests, coverage proof, siege engines, watch.
  */
 export async function scanRepo(cfg: GameConfig): Promise<RepoScan> {
-  const [sourceFiles, testFiles, coverage, playwright, ci] = await Promise.all([
-    fg(cfg.sourceGlobs, {
-      cwd: cfg.repoPath,
-      ignore: [...cfg.excludeGlobs, ...FORBIDDEN_LANDS],
-      unique: true,
-    }),
-    fg(TEST_GLOBS, { cwd: cfg.repoPath, ignore: FORBIDDEN_LANDS, unique: true }),
-    unearthCoverage(cfg),
-    scryPlaywright(cfg.repoPath),
-    inspectCastleWatch(cfg.repoPath),
-  ]);
+  const interpreter = adapterForLanguage(cfg.language);
+  const [sourceFiles, testFiles, coverage, playwright, ci, missingTools] =
+    await Promise.all([
+      fg(cfg.sourceGlobs, {
+        cwd: cfg.repoPath,
+        ignore: [...cfg.excludeGlobs, ...FORBIDDEN_LANDS],
+        unique: true,
+      }),
+      fg(cfg.testGlobs, { cwd: cfg.repoPath, ignore: FORBIDDEN_LANDS, unique: true }),
+      unearthCoverage(cfg),
+      scryPlaywright(cfg.repoPath),
+      inspectCastleWatch(cfg.repoPath),
+      auditArmory(requiredToolsFor(cfg, interpreter.requiredTools)),
+    ]);
 
   return {
     repoPath: cfg.repoPath,
@@ -243,6 +251,8 @@ export async function scanRepo(cfg: GameConfig): Promise<RepoScan> {
     sourceFiles: sourceFiles.sort(),
     testFiles: testFiles.sort(),
     scannedAt: Date.now(),
+    language: cfg.language,
+    missingTools,
   };
 }
 

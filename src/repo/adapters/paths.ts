@@ -21,3 +21,12 @@ export function toRepoRelativePosix(key: string, repoPath: string): string {
   const rel = looksRooted(slashed) ? path.posix.relative(root, slashed) : slashed;
   return rel.replace(/^\.\//, '');
 }
+
+/**
+ * The module directive from a go.mod, e.g. "github.com/realm/keep" — go
+ * coverprofiles file everything under this prefix. Null when absent.
+ */
+export function parseGoModulePath(goModText: string): string | null {
+  const m = /^\s*module\s+(\S+)/m.exec(goModText);
+  return m?.[1] ?? null;
+}

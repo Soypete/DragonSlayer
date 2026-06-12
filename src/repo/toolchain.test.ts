@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ToolRequirement } from '../types.js';
-import { auditArmory, commandBinary, findTool, missingTools } from './toolchain.js';
+import {
+  auditArmory,
+  commandBinary,
+  findTool,
+  missingTools,
+  requiredToolsFor,
+} from './toolchain.js';
 
 const req = (binary: string, neededFor: 'tests' | 'coverage' = 'tests'): ToolRequirement => ({
   binary,
@@ -36,6 +42,52 @@ describe('missingTools (pure)', () => {
   it('keeps every duty a missing binary was needed for', () => {
     const missing = missingTools([req('cargo'), req('cargo', 'coverage')], () => false);
     expect(missing).toHaveLength(2);
+  });
+});
+
+describe('requiredToolsFor (the requisition list, pure)', () => {
+  const rustup = 'https://rustup.rs';
+  const llvmCov = 'https://github.com/taiki-e/cargo-llvm-cov#installation';
+  const sworn: ToolRequirement[] = [
+    { binary: 'cargo', installUrl: rustup, neededFor: 'tests' },
+    { binary: 'cargo', installUrl: rustup, neededFor: 'coverage' },
+    { binary: 'cargo-llvm-cov', installUrl: llvmCov, neededFor: 'coverage' },
+  ];
+
+  it('requires the full sworn kit when a command leads with a sworn binary', () => {
+    const reqs = requiredToolsFor(
+      {
+        testCommand: 'cargo test',
+        coverageCommand: 'cargo llvm-cov --json --output-path coverage.json',
+      },
+      sworn
+    );
+    expect(reqs.map((r) => `${r.binary}:${r.neededFor}`)).toEqual([
+      'cargo:tests',
+      'cargo:coverage',
+      'cargo-llvm-cov:coverage',
+    ]);
+    expect(reqs.every((r) => r.installUrl !== '')).toBe(true);
+  });
+
+  it('trusts a steward-overridden command but still checks its leading binary', () => {
+    const reqs = requiredToolsFor(
+      {
+        testCommand: 'pixi run pytest',
+        coverageCommand: 'pixi run pytest --cov --cov-report=json',
+      },
+      sworn
+    );
+    expect(reqs).toEqual([
+      { binary: 'pixi', installUrl: '', neededFor: 'tests' },
+      { binary: 'pixi', installUrl: '', neededFor: 'coverage' },
+    ]);
+  });
+
+  it('requisitions nothing for empty commands', () => {
+    expect(requiredToolsFor({ testCommand: '', coverageCommand: '  ' }, sworn)).toEqual(
+      []
+    );
   });
 });
 

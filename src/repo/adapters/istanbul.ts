@@ -97,6 +97,11 @@ export const istanbulAdapter: LanguageAdapter = {
       installUrl: 'https://nodejs.org/en/download',
       neededFor: 'tests',
     },
+    {
+      binary: 'npx',
+      installUrl: 'https://nodejs.org/en/download',
+      neededFor: 'coverage',
+    },
   ],
   parseCoverage(raw: string, ctx: ParseContext): CoverageData | null {
     try {
