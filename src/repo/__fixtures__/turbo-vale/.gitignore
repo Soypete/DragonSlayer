@@ -1,0 +1,2 @@
+# Coverage proofs are forged fresh by the test suite (absolute paths inside).
+packages/*/coverage/

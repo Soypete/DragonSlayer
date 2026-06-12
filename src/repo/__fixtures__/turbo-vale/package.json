@@ -1,0 +1,7 @@
+{
+  "name": "turbo-vale",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ]
+}

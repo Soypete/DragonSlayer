@@ -91,6 +91,14 @@ export interface GameConfig {
   sourceGlobs: string[];
   /** Globs excluded from dragon-hosting (tests, generated, vendored). */
   excludeGlobs: string[];
+  /**
+   * Workspace allow-list: repo-relative dir globs (e.g. "packages/*"). When
+   * set, only coverage summaries under matching package dirs join the realm.
+   * Include "." to keep a root-level summary.
+   */
+  packages?: string[];
+  /** Workspace deny-list: summaries under matching dirs never join the realm. */
+  excludePackages?: string[];
 }
 
 // ── Dragons ──────────────────────────────────────────────────────────────────

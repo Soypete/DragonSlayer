@@ -32,6 +32,8 @@ export function defaultConfig(repoPath: string): GameConfig {
       'src/**/*.{ts,tsx,js,jsx}',
       'app/**/*.{ts,tsx,js,jsx}',
       'lib/**/*.{ts,tsx,js,jsx}',
+      // Workspace lands: dragons may lair in any package of a monorepo.
+      '{packages,apps,libs}/*/src/**/*.{ts,tsx,js,jsx}',
     ],
     excludeGlobs: [
       '**/*.test.*',
@@ -96,6 +98,10 @@ export function mergeScrollOverDefaults(
   }
   if (isStringArray(scroll.sourceGlobs)) merged.sourceGlobs = scroll.sourceGlobs;
   if (isStringArray(scroll.excludeGlobs)) merged.excludeGlobs = scroll.excludeGlobs;
+  if (isStringArray(scroll.packages)) merged.packages = scroll.packages;
+  if (isStringArray(scroll.excludePackages)) {
+    merged.excludePackages = scroll.excludePackages;
+  }
   // The repo's location is sworn by the caller, never by the scroll.
   merged.repoPath = defaults.repoPath;
   return merged;
