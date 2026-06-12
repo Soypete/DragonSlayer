@@ -5,7 +5,13 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -52,6 +58,31 @@ export function writeSave(save: SaveGame): void {
   const path = savePath(save.repoPath);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(save, null, 2), 'utf8');
+}
+
+/**
+ * Open the whole vault: every legible chronicle in `~/.gme/saves`.
+ * Corrupt or foreign scrolls are passed over in silence.
+ */
+export function listSaves(): SaveGame[] {
+  const vault = join(homedir(), '.gme', 'saves');
+  let scrolls: string[];
+  try {
+    scrolls = readdirSync(vault).filter((f) => f.endsWith('.json'));
+  } catch {
+    return [];
+  }
+
+  const saves: SaveGame[] = [];
+  for (const scroll of scrolls) {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(join(vault, scroll), 'utf8'));
+      if (isSaveGame(parsed)) saves.push(parsed);
+    } catch {
+      // A water-damaged chronicle tells no campaign.
+    }
+  }
+  return saves;
 }
 
 function isSaveGame(value: unknown): value is SaveGame {

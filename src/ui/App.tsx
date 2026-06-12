@@ -44,9 +44,11 @@ export interface AppProps {
   initialSave: SaveGame;
   /** True if an old chronicle (save file) existed before this boot. */
   hadChronicle: boolean;
+  /** Offered by the Crossroads: return to the Hall of Banners. */
+  onSwitchRealm?: () => void;
 }
 
-export function App({ config, initialScan, initialSave, hadChronicle }: AppProps) {
+export function App({ config, initialScan, initialSave, hadChronicle, onSwitchRealm }: AppProps) {
   const [screen, setScreen] = useState<Screen>('title');
   const [save, setSave] = useState<SaveGame>(initialSave);
   const [scan, setScan] = useState<RepoScan>(initialScan);
@@ -123,9 +125,11 @@ export function App({ config, initialScan, initialSave, hadChronicle }: AppProps
       return (
         <TitleScreen
           save={save}
+          repoPath={config.repoPath}
           hasChronicle={hadChronicle}
           onContinue={rideForth}
           onNewQuest={swearNewOath}
+          onSwitchRealm={onSwitchRealm}
         />
       );
     case 'map':

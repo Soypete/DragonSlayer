@@ -25,6 +25,7 @@ import {
   dullBlade,
   forgeTrialResult,
   hintToll,
+  musterCampaignEntries,
   musterRoster,
   scribeKeys,
   scrollWindow,
@@ -208,6 +209,49 @@ describe('musterRoster — ordering the realm map', () => {
       'src/z-living.ts',
       'src/a-slain.ts',
     ]);
+  });
+});
+
+describe('musterCampaignEntries — the Hall of Banners roll', () => {
+  const saveAt = (repoPath: string, timestamp?: number): SaveGame => ({
+    ...newSave(repoPath),
+    ...(timestamp !== undefined
+      ? { lastScan: { coveragePct: 50, timestamp } }
+      : {}),
+  });
+
+  it('unites saves and registry, deduped, with the save speaking for its realm', () => {
+    const entries = musterCampaignEntries(
+      [saveAt('/realm/keep', 5)],
+      ['/realm/keep', '/realm/uncharted'],
+      () => true,
+    );
+    expect(entries.map((e) => e.repoPath)).toEqual(['/realm/keep', '/realm/uncharted']);
+    expect(entries[0]!.save).not.toBeNull();
+    expect(entries[1]!.save).toBeNull();
+  });
+
+  it('rides freshest campaigns first, then the unplayed in path order', () => {
+    const entries = musterCampaignEntries(
+      [saveAt('/realm/old', 1), saveAt('/realm/new', 9)],
+      ['/realm/b-uncharted', '/realm/a-uncharted'],
+      () => true,
+    );
+    expect(entries.map((e) => e.repoPath)).toEqual([
+      '/realm/new',
+      '/realm/old',
+      '/realm/a-uncharted',
+      '/realm/b-uncharted',
+    ]);
+  });
+
+  it('flags realms that no longer stand', () => {
+    const entries = musterCampaignEntries(
+      [saveAt('/realm/vanished')],
+      [],
+      () => false,
+    );
+    expect(entries[0]!.exists).toBe(false);
   });
 });
 

@@ -4,36 +4,28 @@
  *
  *   gme [--repo <path>]
  *
- * Defaults to ./practice-dungeon when it stands in cwd, else cwd itself.
+ * With --repo the knight rides straight into that realm. Without it the
+ * Hall of Banners opens: every known campaign (saves + the hand-editable
+ * ~/.gme/config.json registry), the herald's suggestion (./practice-dungeon
+ * when it stands in cwd, else cwd), and a path prompt for new realms.
  */
 
 import React from 'react';
 import { render } from 'ink';
 import { existsSync } from 'node:fs';
-import { resolveRepoPath } from './ui/cli.js';
-import { resolveConfig } from './repo/config.js';
-import { scanRepo, buildDragons } from './repo/scanner.js';
-import { dragonName } from './game/naming.js';
-import { loadSave, newSave, writeSave } from './game/state.js';
-import { chronicleScan } from './ui/logic.js';
-import { App } from './ui/App.js';
+import { parseRepoFlag, suggestRealm } from './ui/cli.js';
+import { musterCampaign } from './ui/muster.js';
+import { Root } from './ui/Root.js';
 
 async function main(): Promise<void> {
-  const repoPath = resolveRepoPath(process.argv.slice(2), process.cwd(), existsSync);
-  const config = await resolveConfig(repoPath);
-  const scan = await scanRepo(config);
-  const dragons = buildDragons(scan, dragonName);
-
-  const chronicle = loadSave(repoPath);
-  const save = chronicleScan(chronicle ?? newSave(repoPath), scan, dragons);
-  writeSave(save);
+  const cwd = process.cwd();
+  const summoned = parseRepoFlag(process.argv.slice(2), cwd);
+  const initialCampaign = summoned ? await musterCampaign(summoned) : null;
 
   render(
-    <App
-      config={config}
-      initialScan={scan}
-      initialSave={save}
-      hadChronicle={chronicle !== null}
+    <Root
+      initialCampaign={initialCampaign}
+      suggestedRepo={suggestRealm(cwd, existsSync)}
     />,
     { exitOnCtrlC: true },
   );

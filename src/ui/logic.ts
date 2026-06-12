@@ -3,9 +3,11 @@
  * the UI. No clocks, no dice, no I/O: every function here is deterministic.
  */
 
+import { resolve } from 'node:path';
 import type {
   Augury,
   BattleResult,
+  CampaignEntry,
   Dragon,
   Quest,
   RepoScan,
@@ -68,6 +70,36 @@ export function chronicleScan(save: SaveGame, scan: RepoScan, dragons: Dragon[])
   if (bounty === 0) return chronicled;
   const xp = chronicled.xp + bounty;
   return { ...chronicled, xp, gold: chronicled.gold + Math.round(bounty / 10), rank: rankForXp(xp).id };
+}
+
+/**
+ * Muster the campaign picker's roll: every chronicled realm (saves) united
+ * with every hand-charted one (registry), deduped by absolute path. A save
+ * always speaks for its realm; freshest campaigns ride first, then the
+ * unplayed in path order. `exists` is injected so the muster stays pure.
+ */
+export function musterCampaignEntries(
+  saves: SaveGame[],
+  registryRepos: string[],
+  exists: (path: string) => boolean,
+): CampaignEntry[] {
+  const byPath = new Map<string, CampaignEntry>();
+  for (const save of saves) {
+    const repoPath = resolve(save.repoPath);
+    byPath.set(repoPath, { repoPath, save, exists: exists(repoPath) });
+  }
+  for (const repo of registryRepos) {
+    const repoPath = resolve(repo);
+    if (!byPath.has(repoPath)) {
+      byPath.set(repoPath, { repoPath, save: null, exists: exists(repoPath) });
+    }
+  }
+  return [...byPath.values()].sort((a, b) => {
+    const aStamp = a.save?.lastScan?.timestamp ?? 0;
+    const bStamp = b.save?.lastScan?.timestamp ?? 0;
+    if (aStamp !== bStamp) return bStamp - aStamp;
+    return a.repoPath.localeCompare(b.repoPath);
+  });
 }
 
 /**

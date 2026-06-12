@@ -10,23 +10,39 @@ import { KeyHints } from '../components/KeyHints.js';
 
 export interface TitleScreenProps {
   save: SaveGame;
+  /** The realm this campaign is waged in (shown under the banner). */
+  repoPath?: string;
   /** True when an old chronicle was found on disk. */
   hasChronicle: boolean;
   onContinue: () => void;
   onNewQuest: () => void;
+  /** Offered by the Crossroads: return to the Hall of Banners. */
+  onSwitchRealm?: () => void;
 }
 
-export function TitleScreen({ save, hasChronicle, onContinue, onNewQuest }: TitleScreenProps) {
-  const choices = hasChronicle
-    ? (['Continue the campaign', 'Swear a new oath (fresh save)'] as const)
-    : (['Begin the campaign'] as const);
+export function TitleScreen({
+  save,
+  repoPath,
+  hasChronicle,
+  onContinue,
+  onNewQuest,
+  onSwitchRealm,
+}: TitleScreenProps) {
+  const choices = [
+    ...(hasChronicle
+      ? ['Continue the campaign', 'Swear a new oath (fresh save)']
+      : ['Begin the campaign']),
+    ...(onSwitchRealm ? ['Ride to another realm'] : []),
+  ];
   const [cursor, setCursor] = useState(0);
 
   useRealmInput((input, key) => {
     if (key.upArrow) setCursor((c) => (c + choices.length - 1) % choices.length);
     else if (key.downArrow) setCursor((c) => (c + 1) % choices.length);
     else if (key.return || input === ' ') {
-      if (hasChronicle && cursor === 1) onNewQuest();
+      const choice = choices[cursor];
+      if (choice === 'Ride to another realm') onSwitchRealm?.();
+      else if (choice === 'Swear a new oath (fresh save)') onNewQuest();
       else onContinue();
     }
   });
@@ -41,6 +57,7 @@ export function TitleScreen({ save, hasChronicle, onContinue, onNewQuest }: Titl
         </Text>
       ))}
       <Text color={COLORS.steel}>Bugs are dragons. Coverage is the blade. 100% wins the realm.</Text>
+      {repoPath ? <Text color={COLORS.parchment}>Realm: {repoPath}</Text> : null}
       <Box marginTop={1} flexDirection="column">
         {hasChronicle ? (
           <Text color={COLORS.parchment}>

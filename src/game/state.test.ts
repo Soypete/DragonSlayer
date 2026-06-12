@@ -1,11 +1,20 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { BattleResult } from '../types.js';
 import { makeDragon, makeScan } from './fixtures.test-helpers.js';
-import { applyBattle, applyScan, hasWon, loadSave, newSave, savePath, writeSave } from './state.js';
+import {
+  applyBattle,
+  applyScan,
+  hasWon,
+  listSaves,
+  loadSave,
+  newSave,
+  savePath,
+  writeSave,
+} from './state.js';
 
 function battle(overrides: Partial<BattleResult> = {}): BattleResult {
   return {
@@ -74,6 +83,30 @@ describe('the Chronicle (state)', () => {
       const richer = { ...save, gold: 9000 };
       writeSave(richer);
       expect(loadSave('/realm/keep')?.gold).toBe(9000);
+    });
+
+    it('lists every legible chronicle in the vault', () => {
+      writeSave(newSave('/realm/keep'));
+      writeSave(newSave('/realm/other-keep'));
+      const saves = listSaves();
+      expect(saves.map((s) => s.repoPath).sort()).toEqual([
+        '/realm/keep',
+        '/realm/other-keep',
+      ]);
+    });
+
+    it('passes over corrupt and foreign scrolls in silence', () => {
+      writeSave(newSave('/realm/keep'));
+      const dir = join(vault, '.gme', 'saves');
+      writeFileSync(join(dir, 'corrupt.json'), '{not json');
+      writeFileSync(join(dir, 'foreign.json'), JSON.stringify({ version: 99 }));
+      const saves = listSaves();
+      expect(saves).toHaveLength(1);
+      expect(saves[0]!.repoPath).toBe('/realm/keep');
+    });
+
+    it('returns an empty roster when the vault has never been built', () => {
+      expect(listSaves()).toEqual([]);
     });
   });
 

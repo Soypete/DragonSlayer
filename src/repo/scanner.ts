@@ -70,14 +70,29 @@ export function toRepoRelativePosix(key: string, repoPath: string): string {
 }
 
 /**
+ * The package a summary testifies for: the grandparent of the summary file
+ * (`packages/api/coverage/coverage-summary.json` → `packages/api`), or `''`
+ * when the summary sits in an output dir directly under the repo root.
+ */
+export function summaryPackageRoot(summaryRel: string): string {
+  const outputDir = path.posix.dirname(summaryRel.replace(/\\/g, '/'));
+  const pkg = path.posix.dirname(outputDir);
+  return pkg === '.' || pkg === '/' ? '' : pkg;
+}
+
+/**
  * Normalize a raw istanbul json-summary document into CoverageData.
  * Pure: takes the parsed JSON, the repo root, and provenance as params.
+ * `packageRoot` prefixes relative keys so a package's `src/foo.ts` lands at
+ * `packages/api/src/foo.ts`; absolute keys are relativized against the repo
+ * root and need no prefix.
  */
 export function normalizeCoverageSummary(
   raw: Record<string, unknown>,
   repoPath: string,
   source: string,
-  generatedAt: number
+  generatedAt: number,
+  packageRoot = ''
 ): CoverageData {
   const files: CoverageFileStats[] = [];
   let totals: CoverageData['totals'] = {
@@ -98,7 +113,12 @@ export function normalizeCoverageSummary(
     if (key === 'total') {
       totals = stats;
     } else {
-      files.push({ path: toRepoRelativePosix(key, repoPath), ...stats });
+      const rel = toRepoRelativePosix(key, repoPath);
+      const placed =
+        looksRooted(key.replace(/\\/g, '/')) || packageRoot === ''
+          ? rel
+          : path.posix.join(packageRoot, rel);
+      files.push({ path: placed, ...stats });
     }
   }
 
@@ -106,7 +126,77 @@ export function normalizeCoverageSummary(
   return { files, totals, source, generatedAt };
 }
 
+/**
+ * Merge coverage proofs from every armory into one realm-wide ledger.
+ * On duplicate file paths the freshest proof wins; totals are recomputed
+ * from the deduped files so nothing is counted twice.
+ */
+export function mergeCoverageData(parts: CoverageData[]): CoverageData | null {
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return parts[0]!;
+
+  const ordered = [...parts].sort((a, b) => a.generatedAt - b.generatedAt);
+  const ledger = new Map<string, CoverageFileStats>();
+  for (const part of ordered) {
+    for (const file of part.files) ledger.set(file.path, file);
+  }
+
+  const files = [...ledger.values()].sort((a, b) => a.path.localeCompare(b.path));
+  const totals = {} as CoverageData['totals'];
+  for (const metric of ['lines', 'statements', 'functions', 'branches'] as const) {
+    let total = 0;
+    let covered = 0;
+    for (const file of files) {
+      total += file[metric].total;
+      covered += file[metric].covered;
+    }
+    // An empty realm scores 0, never 100 — victory demands proven ground.
+    const pct = total > 0 ? Number(((covered / total) * 100).toFixed(2)) : 0;
+    totals[metric] = { total, covered, pct };
+  }
+
+  return {
+    files,
+    totals,
+    source: ordered
+      .map((p) => p.source)
+      .sort()
+      .join(' + '),
+    generatedAt: Math.max(...ordered.map((p) => p.generatedAt)),
+  };
+}
+
+/** Does a summary's package root pass the steward's allow/deny globs? */
+export function packageAllowed(
+  pkgRoot: string,
+  allowed: Set<string> | null,
+  denied: Set<string>
+): boolean {
+  if (denied.has(pkgRoot)) return false;
+  if (allowed === null) return true;
+  return allowed.has(pkgRoot);
+}
+
 // ── Survey expeditions (IO) ──────────────────────────────────────────────────
+
+/** Expand package globs into the set of package roots they bless (or ban). */
+async function resolvePackageSet(
+  globs: string[] | undefined,
+  repoPath: string
+): Promise<Set<string> | null> {
+  if (!globs || globs.length === 0) return null;
+  const set = new Set<string>();
+  // "." names the repo root itself, which no directory glob would match.
+  if (globs.includes('.')) set.add('');
+  const dirs = await fg(globs, {
+    cwd: repoPath,
+    ignore: FORBIDDEN_LANDS,
+    onlyDirectories: true,
+    unique: true,
+  });
+  for (const dir of dirs) set.add(dir.replace(/\/+$/, ''));
+  return set;
+}
 
 async function unearthCoverage(cfg: GameConfig): Promise<CoverageData | null> {
   const candidates = await fg(cfg.coverageSummaryGlobs, {
@@ -117,29 +207,40 @@ async function unearthCoverage(cfg: GameConfig): Promise<CoverageData | null> {
   });
   if (candidates.length === 0) return null;
 
-  // Several proofs may be filed; the freshest seal wins.
-  let freshest: { rel: string; mtimeMs: number } | null = null;
-  for (const rel of candidates) {
-    try {
-      const s = await stat(path.join(cfg.repoPath, rel));
-      if (!freshest || s.mtimeMs > freshest.mtimeMs) {
-        freshest = { rel, mtimeMs: s.mtimeMs };
-      }
-    } catch {
-      // The proof crumbled between glob and stat; skip it.
-    }
-  }
-  if (!freshest) return null;
+  const [allowed, denied] = await Promise.all([
+    resolvePackageSet(cfg.packages, cfg.repoPath),
+    resolvePackageSet(cfg.excludePackages, cfg.repoPath),
+  ]);
 
-  try {
-    const raw = JSON.parse(
-      await readFile(path.join(cfg.repoPath, freshest.rel), 'utf8')
-    ) as Record<string, unknown>;
-    return normalizeCoverageSummary(raw, cfg.repoPath, freshest.rel, freshest.mtimeMs);
-  } catch {
-    // Forged or water-damaged proof — better none than lies.
-    return null;
-  }
+  // Every proof from every armory joins the realm — not just the freshest.
+  const parts = await Promise.all(
+    candidates
+      .filter((rel) =>
+        packageAllowed(summaryPackageRoot(rel), allowed, denied ?? new Set())
+      )
+      .map(async (rel): Promise<CoverageData | null> => {
+        try {
+          const abs = path.join(cfg.repoPath, rel);
+          const s = await stat(abs);
+          const raw = JSON.parse(await readFile(abs, 'utf8')) as Record<
+            string,
+            unknown
+          >;
+          return normalizeCoverageSummary(
+            raw,
+            cfg.repoPath,
+            rel,
+            s.mtimeMs,
+            summaryPackageRoot(rel)
+          );
+        } catch {
+          // Forged, water-damaged, or vanished proof — better none than lies.
+          return null;
+        }
+      })
+  );
+
+  return mergeCoverageData(parts.filter((p): p is CoverageData => p !== null));
 }
 
 async function scryPlaywright(repoPath: string): Promise<PlaywrightInfo> {

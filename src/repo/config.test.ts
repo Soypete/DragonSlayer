@@ -93,4 +93,22 @@ describe('mergeScrollOverDefaults (pure merging)', () => {
     });
     expect(merged.repoPath).toBe('/sworn/realm');
   });
+
+  it('accepts well-shaped packages and excludePackages globs', () => {
+    const merged = mergeScrollOverDefaults(defaults, {
+      packages: ['packages/*', '.'],
+      excludePackages: ['packages/legacy-*'],
+    });
+    expect(merged.packages).toEqual(['packages/*', '.']);
+    expect(merged.excludePackages).toEqual(['packages/legacy-*']);
+  });
+
+  it('rejects ill-shaped packages globs and leaves them unset', () => {
+    const merged = mergeScrollOverDefaults(defaults, {
+      packages: 'packages/*',
+      excludePackages: [42],
+    });
+    expect(merged.packages).toBeUndefined();
+    expect(merged.excludePackages).toBeUndefined();
+  });
 });

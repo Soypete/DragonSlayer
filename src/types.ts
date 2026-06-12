@@ -91,6 +91,14 @@ export interface GameConfig {
   sourceGlobs: string[];
   /** Globs excluded from dragon-hosting (tests, generated, vendored). */
   excludeGlobs: string[];
+  /**
+   * Workspace allow-list: repo-relative dir globs (e.g. "packages/*"). When
+   * set, only coverage summaries under matching package dirs join the realm.
+   * Include "." to keep a root-level summary.
+   */
+  packages?: string[];
+  /** Workspace deny-list: summaries under matching dirs never join the realm. */
+  excludePackages?: string[];
 }
 
 // ── Dragons ──────────────────────────────────────────────────────────────────
@@ -213,6 +221,27 @@ export interface SaveGame {
     coveragePct: number;
     timestamp: number;
   };
+}
+
+// ── Global registry (cross-campaign) ─────────────────────────────────────────
+
+/**
+ * The hand-editable ledger of known realms at `~/.gme/config.json`.
+ * Stewards may add repo paths by hand; the game registers them on open.
+ */
+export interface GlobalRegistry {
+  version: 1;
+  /** Absolute paths of known realms (target repos). */
+  repos: string[];
+}
+
+/** One row in the title-screen campaign picker. */
+export interface CampaignEntry {
+  repoPath: string;
+  /** Chronicle found in the saves vault, if any. */
+  save: SaveGame | null;
+  /** False when the realm's path no longer stands on disk. */
+  exists: boolean;
 }
 
 // ── Vim trials (sword-school) ────────────────────────────────────────────────
