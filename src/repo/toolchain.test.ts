@@ -24,6 +24,17 @@ describe('commandBinary (pure)', () => {
     expect(commandBinary('')).toBe('');
     expect(commandBinary('   ')).toBe('');
   });
+
+  it('sees past leading environment assignments to the true binary', () => {
+    expect(
+      commandBinary('PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov')
+    ).toBe('pytest');
+    expect(commandBinary('FOO=bar BAZ=2 go test ./...')).toBe('go');
+  });
+
+  it('finds no binary in a command that is all assignments', () => {
+    expect(commandBinary('FOO=bar')).toBe('');
+  });
 });
 
 describe('missingTools (pure)', () => {
