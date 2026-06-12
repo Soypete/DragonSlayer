@@ -2,8 +2,9 @@
 
 **Bugs are dragons. Coverage is the blade. 100% wins the realm.**
 
-A terminal RPG about making real code reliable. Point it at any repo: every file
-with untested lines becomes a dragon whose HP is its uncovered line count. You
+A terminal RPG about making real code reliable. Point it at any repo —
+JS/TS, Go, Python, or Rust — and every file with untested lines becomes a
+dragon whose HP is its uncovered line count. You
 weaken dragons in monkeytype-style typing battles over real snippets from your
 code — but the only thing that *kills* a dragon is writing an actual test and
 running real coverage at the Forge. Win the realm by reaching 100% line coverage
@@ -72,8 +73,31 @@ path, so a moved repo starts a fresh campaign.
 
 ## Questing in your own repo
 
-The game guesses your test commands from `package.json` scripts. To be explicit,
-drop a `gme.config.json` in the target repo:
+The game reads the manifests at your repo's root to detect its language and
+equips that toolchain's standard kit — test command, coverage command, and the
+coverage dialect it will read. JavaScript/TypeScript realms additionally get
+their commands divined from `package.json` scripts.
+
+### Supported languages
+
+| Language | Detected by | Tests | Coverage | You need installed |
+|----------|-------------|-------|----------|--------------------|
+| JS / TS | `package.json` | `npx vitest run` (or divined: npm/jest/`node --test`) | istanbul `coverage-summary.json` | Node + npm |
+| Go | `go.mod` | `go test ./...` | `go test ./... -coverprofile=coverage.out -covermode=atomic` | [Go](https://go.dev/doc/install) |
+| Python | `pyproject.toml` / `setup.py` / `setup.cfg` / `requirements.txt` | `pytest` | `pytest --cov --cov-report=json` | [pytest](https://docs.pytest.org/en/stable/getting-started.html) + [pytest-cov](https://pytest-cov.readthedocs.io/) |
+| Rust | `Cargo.toml` | `cargo test` | `cargo llvm-cov --json --output-path coverage.json` | [rustup](https://rustup.rs) + [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov#installation) |
+
+When several manifests fly at one gate, the strongest banner wins: go >
+rust > python > js (`package.json` ranks last because it flies over many
+non-JS repos as mere tooling). Declare `"language"` in `gme.config.json` to
+overrule the guess.
+
+Before each scan the game checks the armory: any required binary missing from
+your PATH gets a torch-orange warning on the realm map with an install link —
+tests still run with whatever you do have. (Coverage tools the game can't see,
+like the `pytest-cov` plugin, only show up when the forge command fails.)
+
+To be explicit about anything, drop a `gme.config.json` in the target repo:
 
 ```json
 {
@@ -88,23 +112,38 @@ drop a `gme.config.json` in the target repo:
 }
 ```
 
-Every field is optional; omitted fields keep their defaults:
+Every field is optional; omitted fields keep their language's defaults:
 
-| Field | What it does | Default |
-|-------|--------------|---------|
+| Field | What it does | Default (js shown) |
+|-------|--------------|--------------------|
+| `language` | overrides detection: `js`, `go`, `python`, `rust` | detected from root manifests |
+| `coverageFormat` | which dialect the coverage artifact speaks: `istanbul-summary`, `go-coverprofile`, `coverage-py-json`, `llvm-cov-json` | the language's native dialect |
 | `testCommand` | runs the unit suite | divined from scripts, else `npx vitest run` |
-| `coverageCommand` | must emit a json-summary | divined, else `npx vitest run --coverage` |
+| `coverageCommand` | must emit the `coverageFormat` artifact | divined, else `npx vitest run --coverage` |
 | `e2eCommand` | the end-to-end suite | divined from `test:e2e` |
-| `coverageSummaryGlobs` | where coverage summaries are found | `coverage/coverage-summary.json` + `**/coverage/coverage-summary.json` |
+| `coverageSummaryGlobs` | where coverage artifacts are found | `coverage/coverage-summary.json` + `**/coverage/coverage-summary.json` |
 | `sourceGlobs` | files that can host dragons | `src`, `app`, `lib`, and `{packages,apps,libs}/*/src` trees |
 | `excludeGlobs` | never host dragons | tests, specs, `node_modules`, `dist`, `.d.ts` |
+| `testGlobs` | where the test files live | the language's test patterns |
 | `packages` | monorepo allow-list (see below) | unset — every package counts |
 | `excludePackages` | monorepo deny-list | unset |
 
-Requirements for the target repo: its coverage command must emit an
-istanbul-style `coverage-summary.json` (vitest: coverage reporter
-`json-summary`; jest: `--coverageReporters=json-summary`). Playwright is
-detected automatically for the e2e quest line.
+The escape hatch composes: a Python repo managed by
+[pixi](https://pixi.sh) (or poetry, uv, hatch…) just wraps the commands —
+
+```json
+{
+  "testCommand": "pixi run pytest",
+  "coverageCommand": "pixi run pytest --cov --cov-report=json"
+}
+```
+
+For JS realms the coverage command must emit an istanbul-style
+`coverage-summary.json` (vitest: coverage reporter `json-summary`; jest:
+`--coverageReporters=json-summary`). Playwright is detected automatically for
+the e2e quest line. Rust note: `cargo llvm-cov` needs a one-time
+`cargo install cargo-llvm-cov`; until then `cargo test` still runs and your
+dragons simply keep full HP (no coverage proof, no slayings).
 
 ### Monorepos
 

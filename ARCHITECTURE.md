@@ -29,7 +29,9 @@ src/
   game/               # agent: game-core
     ranks.ts naming.ts quests.ts state.ts
   repo/               # agent: repo-scanner
-    config.ts scanner.ts runner.ts
+    config.ts scanner.ts runner.ts detect.ts toolchain.ts
+    adapters/         # the Guild of Interpreters: one per language
+      adapter.ts istanbul.ts go.ts python.ts rust.ts metrics.ts paths.ts
   typing/             # agent: typing-engine
     engine.ts snippets.ts
   ai/                 # agent: oracle
@@ -72,21 +74,38 @@ practice-dungeon/     # agent: practice-dungeon — standalone fixture project
 
 ### `src/repo/` (repo-scanner)
 
+- **detect.ts** — `detectLanguage(rootEntries: string[]): RepoLanguage`. Pure:
+  names a repo's tongue from its root manifests, strongest banner first
+  (`go.mod` > `Cargo.toml` > python manifests > `package.json` > js default).
+- **adapters/** — the Guild of Interpreters. `adapter.ts` defines
+  `LanguageAdapter` (per-language default commands/globs, `requiredTools`
+  with install URLs, and a pure `parseCoverage(rawText, ctx): CoverageData | null`)
+  plus the `GUILD` registry and `adapterForLanguage`/`adapterForFormat`
+  lookups (unknown tongues fall back to istanbul). `istanbul.ts` (js),
+  `go.ts` (coverprofile), `python.ts` (coverage.py JSON), `rust.ts`
+  (cargo-llvm-cov JSON export); `metrics.ts` and `paths.ts` hold the shared
+  scales and path compass.
+- **toolchain.ts** — the armory inspector: `findTool` (`which -a`, `where` on
+  windows), pure `requiredToolsFor`/`missingTools`, and `auditArmory` used by
+  the scanner to file `RepoScan.missingTools` (reported in the UI, never
+  enforced).
 - **config.ts** — `resolveConfig(repoPath: string): Promise<GameConfig>`:
-  1. If `<repo>/gme.config.json` exists, merge it over defaults.
-  2. Else guess from package.json scripts (prefer `test:coverage`, `coverage`,
-     fall back to `npx vitest run --coverage`). e2e from `test:e2e` if present.
-  3. Defaults: coverageSummaryGlobs `["coverage/coverage-summary.json", "**/coverage/coverage-summary.json"]`
-     (ignore node_modules), sourceGlobs `["src/**/*.{ts,tsx,js,jsx}", "app/**/*.{ts,tsx,js,jsx}", "lib/**/*.{ts,tsx,js,jsx}"]`,
-     excludeGlobs for `*.test.*`, `*.spec.*`, `**/node_modules/**`, `**/dist/**`, `**/*.d.ts`.
+  1. Detect the repo's language from its root entries (detect.ts) and start
+     from that tongue's adapter defaults.
+  2. If `<repo>/gme.config.json` exists, merge it over those defaults; its
+     `coverageFormat` outranks its `language`, which outranks detection.
+  3. Else, for js realms only, guess commands from package.json scripts
+     (prefer `test:coverage`, `coverage`, sniff jest/`node --test` flavors,
+     fall back to `npx vitest run --coverage`). e2e from `test:e2e`.
 - **scanner.ts** —
-  - `scanRepo(cfg: GameConfig): Promise<RepoScan>` — fast-glob the source/test files,
-    find newest coverage-summary.json among globs and parse it (istanbul
-    json-summary format: `{ total: {...}, "<abs path>": { lines: {...}, ... } }`;
-    normalize absolute keys to repo-relative posix paths). Detect playwright
+  - `scanRepo(cfg: GameConfig): Promise<RepoScan>` — fast-glob the source/test
+    files (`cfg.testGlobs`), unearth coverage artifacts via the format's sworn
+    interpreter (`adapterForFormat(cfg.coverageFormat).parseCoverage`), merge
+    every proof into one realm (monorepo summaries get package-prefixed
+    paths), audit the armory for missing binaries. Detect playwright
     (playwright.config.* anywhere outside node_modules; count `*.spec.*` files
     under its dir / `e2e|tests` dirs). Detect CI (`.github/workflows/*.yml`,
-    hasTestJob if any file content matches /\b(test|vitest|jest|playwright)\b/i).
+    hasTestJob if any file content matches /\b(test|vitest|jest|playwright|pytest)\b/i).
   - `buildDragons(scan: RepoScan): Dragon[]` — one dragon per source file with
     coverage data and lines.pct < 100 (hp = uncovered lines), PLUS files with NO
     coverage entry at all (hp = file line count, the most dangerous kind).
