@@ -1,0 +1,27 @@
+{
+  "type": "llvm.coverage.json.export",
+  "version": "2.0.1",
+  "data": [
+    {
+      "files": [
+        {
+          "filename": "/realm/crab-citadel/src/lib.rs",
+          "summary": {
+            "lines": { "count": 12, "covered": 9, "percent": 75 },
+            "functions": { "count": 3, "covered": 2, "percent": 66.66666666666667 },
+            "branches": { "count": 4, "covered": 2, "notcovered": 2, "percent": 50 },
+            "regions": { "count": 8, "covered": 5, "notcovered": 3, "percent": 62.5 },
+            "instantiations": { "count": 3, "covered": 2, "percent": 66.66666666666667 }
+          }
+        }
+      ],
+      "totals": {
+        "lines": { "count": 12, "covered": 9, "percent": 75 },
+        "functions": { "count": 3, "covered": 2, "percent": 66.66666666666667 },
+        "branches": { "count": 4, "covered": 2, "notcovered": 2, "percent": 50 },
+        "regions": { "count": 8, "covered": 5, "notcovered": 3, "percent": 62.5 },
+        "instantiations": { "count": 3, "covered": 2, "percent": 66.66666666666667 }
+      }
+    }
+  ]
+}
