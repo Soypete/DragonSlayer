@@ -23,6 +23,25 @@ export interface Rank {
   sigil: string;
 }
 
+// ── Languages & coverage dialects ────────────────────────────────────────────
+
+/** Tongues the realm can speak: which toolchain a target repo is built with. */
+export type RepoLanguage = 'js' | 'go' | 'python' | 'rust';
+
+/** Dialects of coverage proof the realm can read. */
+export type CoverageFormat =
+  | 'istanbul-summary'
+  | 'go-coverprofile'
+  | 'coverage-py-json'
+  | 'llvm-cov-json';
+
+/** A binary a command needs, with somewhere to send the player when it's missing. */
+export interface ToolRequirement {
+  binary: string;
+  installUrl: string;
+  neededFor: 'tests' | 'coverage';
+}
+
 // ── Coverage & repo scanning ─────────────────────────────────────────────────
 
 export interface CoverageMetric {
@@ -72,6 +91,10 @@ export interface RepoScan {
   /** Test files found (relative posix paths). */
   testFiles: string[];
   scannedAt: number;
+  /** Tongue the realm speaks (mirrors GameConfig.language). */
+  language?: RepoLanguage;
+  /** Required binaries the armory inspector could NOT find on the PATH. */
+  missingTools?: ToolRequirement[];
 }
 
 // ── Game config (per target repo) ────────────────────────────────────────────
@@ -79,18 +102,24 @@ export interface RepoScan {
 export interface GameConfig {
   /** Absolute path to the repo being quested. */
   repoPath: string;
+  /** Tongue the repo speaks: detected from its manifests or declared in the scroll. */
+  language: RepoLanguage;
+  /** Which coverage dialect the coverage command emits. */
+  coverageFormat: CoverageFormat;
   /** Command that runs unit tests, executed with cwd=repoPath. */
   testCommand: string;
-  /** Command that produces coverage incl. a json-summary reporter. */
+  /** Command that produces a coverage artifact in `coverageFormat`. */
   coverageCommand: string;
   /** Optional command for the end-to-end suite. */
   e2eCommand?: string;
-  /** Globs (relative to repoPath) to locate coverage-summary.json files. */
+  /** Globs (relative to repoPath) locating the coverage artifact(s). */
   coverageSummaryGlobs: string[];
   /** Globs selecting source files that can host dragons. */
   sourceGlobs: string[];
   /** Globs excluded from dragon-hosting (tests, generated, vendored). */
   excludeGlobs: string[];
+  /** Globs selecting test files (the castle guard's drill yards). */
+  testGlobs: string[];
   /**
    * Workspace allow-list: repo-relative dir globs (e.g. "packages/*"). When
    * set, only coverage summaries under matching package dirs join the realm.

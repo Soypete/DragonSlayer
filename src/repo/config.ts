@@ -13,35 +13,31 @@
 
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import type { GameConfig } from '../types.js';
+import type { GameConfig, RepoLanguage } from '../types.js';
+import { adapterForLanguage } from './adapters/adapter.js';
 
 /** The scroll a repo's stewards may leave at the gate to override divination. */
 export const CONFIG_SCROLL = 'gme.config.json';
 
-/** Standard-issue kit: what every squire carries when the gate bears no scroll. */
-export function defaultConfig(repoPath: string): GameConfig {
+/**
+ * Standard-issue kit: what a squire carries when the gate bears no scroll —
+ * the sworn interpreter's kit for the realm's tongue (js when unstated).
+ */
+export function defaultConfig(
+  repoPath: string,
+  language: RepoLanguage = 'js'
+): GameConfig {
+  const interpreter = adapterForLanguage(language);
   return {
     repoPath,
-    testCommand: 'npx vitest run',
-    coverageCommand: 'npx vitest run --coverage',
-    coverageSummaryGlobs: [
-      'coverage/coverage-summary.json',
-      '**/coverage/coverage-summary.json',
-    ],
-    sourceGlobs: [
-      'src/**/*.{ts,tsx,js,jsx}',
-      'app/**/*.{ts,tsx,js,jsx}',
-      'lib/**/*.{ts,tsx,js,jsx}',
-      // Workspace lands: dragons may lair in any package of a monorepo.
-      '{packages,apps,libs}/*/src/**/*.{ts,tsx,js,jsx}',
-    ],
-    excludeGlobs: [
-      '**/*.test.*',
-      '**/*.spec.*',
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/*.d.ts',
-    ],
+    language,
+    coverageFormat: interpreter.coverageFormat,
+    testCommand: interpreter.defaults.testCommand,
+    coverageCommand: interpreter.defaults.coverageCommand,
+    coverageSummaryGlobs: [...interpreter.defaults.coverageSummaryGlobs],
+    sourceGlobs: [...interpreter.defaults.sourceGlobs],
+    excludeGlobs: [...interpreter.defaults.excludeGlobs],
+    testGlobs: [...interpreter.defaults.testGlobs],
   };
 }
 

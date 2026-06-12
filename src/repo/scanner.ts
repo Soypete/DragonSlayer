@@ -15,13 +15,18 @@ import type {
   CiInfo,
   CoverageData,
   CoverageFileStats,
-  CoverageMetric,
   Dragon,
   DragonSpecies,
   GameConfig,
   PlaywrightInfo,
   RepoScan,
 } from '../types.js';
+import { normalizeCoverageSummary } from './adapters/istanbul.js';
+import { toRepoRelativePosix } from './adapters/paths.js';
+
+// The old tongue's helpers moved to the Guild of Interpreters (adapters/);
+// re-exported here so long-standing callers keep their maps unredrawn.
+export { normalizeCoverageSummary, toRepoRelativePosix };
 
 /** Lands no honest dragon would lair in (and no cartographer maps). */
 const FORBIDDEN_LANDS = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
@@ -40,35 +45,6 @@ export type DragonNamer = (file: string) => { name: string; species: DragonSpeci
 
 // ── Coverage normalization (pure) ────────────────────────────────────────────
 
-function asFiniteNumber(value: unknown): number {
-  // Istanbul writes "Unknown" for empty totals; treat anything unholy as 0.
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function readMetric(raw: unknown): CoverageMetric {
-  const m = (raw ?? {}) as Record<string, unknown>;
-  return {
-    total: asFiniteNumber(m.total),
-    covered: asFiniteNumber(m.covered),
-    pct: asFiniteNumber(m.pct),
-  };
-}
-
-const looksRooted = (p: string): boolean =>
-  path.posix.isAbsolute(p) || /^[A-Za-z]:\//.test(p);
-
-/** Translate any path the summary speaks (absolute, windows) into repo-relative posix. */
-export function toRepoRelativePosix(key: string, repoPath: string): string {
-  const slashed = key.replace(/\\/g, '/');
-  const rootSlashed = repoPath.replace(/\\/g, '/');
-  const root = looksRooted(rootSlashed)
-    ? rootSlashed.replace(/\/+$/, '')
-    : path.resolve(repoPath).replace(/\\/g, '/');
-  const rel = looksRooted(slashed) ? path.posix.relative(root, slashed) : slashed;
-  return rel.replace(/^\.\//, '');
-}
-
 /**
  * The package a summary testifies for: the grandparent of the summary file
  * (`packages/api/coverage/coverage-summary.json` → `packages/api`), or `''`
@@ -78,52 +54,6 @@ export function summaryPackageRoot(summaryRel: string): string {
   const outputDir = path.posix.dirname(summaryRel.replace(/\\/g, '/'));
   const pkg = path.posix.dirname(outputDir);
   return pkg === '.' || pkg === '/' ? '' : pkg;
-}
-
-/**
- * Normalize a raw istanbul json-summary document into CoverageData.
- * Pure: takes the parsed JSON, the repo root, and provenance as params.
- * `packageRoot` prefixes relative keys so a package's `src/foo.ts` lands at
- * `packages/api/src/foo.ts`; absolute keys are relativized against the repo
- * root and need no prefix.
- */
-export function normalizeCoverageSummary(
-  raw: Record<string, unknown>,
-  repoPath: string,
-  source: string,
-  generatedAt: number,
-  packageRoot = ''
-): CoverageData {
-  const files: CoverageFileStats[] = [];
-  let totals: CoverageData['totals'] = {
-    lines: readMetric(undefined),
-    statements: readMetric(undefined),
-    functions: readMetric(undefined),
-    branches: readMetric(undefined),
-  };
-
-  for (const [key, value] of Object.entries(raw)) {
-    const entry = (value ?? {}) as Record<string, unknown>;
-    const stats = {
-      lines: readMetric(entry.lines),
-      statements: readMetric(entry.statements),
-      functions: readMetric(entry.functions),
-      branches: readMetric(entry.branches),
-    };
-    if (key === 'total') {
-      totals = stats;
-    } else {
-      const rel = toRepoRelativePosix(key, repoPath);
-      const placed =
-        looksRooted(key.replace(/\\/g, '/')) || packageRoot === ''
-          ? rel
-          : path.posix.join(packageRoot, rel);
-      files.push({ path: placed, ...stats });
-    }
-  }
-
-  files.sort((a, b) => a.path.localeCompare(b.path));
-  return { files, totals, source, generatedAt };
 }
 
 /**
