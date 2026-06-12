@@ -1,0 +1,9 @@
+[project]
+name = "serpents-spire"
+version = "0.1.0"
+description = "A spire where serpents brew venom and shed their scales."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+addopts = "--cov=spire"
+testpaths = ["tests"]

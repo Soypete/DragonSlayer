@@ -15,6 +15,7 @@ import type {
 } from '../../types.js';
 import { goAdapter } from './go.js';
 import { istanbulAdapter } from './istanbul.js';
+import { pythonAdapter } from './python.js';
 
 /** Provenance and hints handed to an interpreter alongside the raw artifact. */
 export interface ParseContext {
@@ -57,6 +58,7 @@ export interface LanguageAdapter {
 const GUILD: LanguageAdapter[] = [
   istanbulAdapter,
   goAdapter,
+  pythonAdapter,
 ];
 
 /** The interpreter for a coverage dialect, if one has sworn the oath. */
