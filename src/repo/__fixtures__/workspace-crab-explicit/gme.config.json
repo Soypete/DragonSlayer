@@ -1,0 +1,5 @@
+{
+  "sourceGlobs": ["hand-picked/src/**/*.rs"],
+  "testGlobs": ["hand-picked/tests/**/*.rs"]
+}
+
