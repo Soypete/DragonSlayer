@@ -108,7 +108,24 @@ describe('the Keep — screen state machine', () => {
     const { lastFrame, unmount } = await bootApp();
     expect(lastFrame()).toContain('Continue the campaign');
     expect(lastFrame()).toContain('Page of the Untested Marches');
+    expect(lastFrame()).not.toContain('Ride to another realm');
     unmount();
+  });
+
+  it('offers the road to other realms when the Crossroads stands above', async () => {
+    const instance = render(
+      <App
+        config={config}
+        initialScan={scan}
+        initialSave={save}
+        hadChronicle={true}
+        onSwitchRealm={() => {}}
+      />,
+    );
+    await settle();
+    expect(instance.lastFrame()).toContain('Ride to another realm');
+    expect(instance.lastFrame()).toContain(`Realm: ${REPO}`);
+    instance.unmount();
   });
 
   it('rides forth to the realm map and shows the dragon roster', async () => {

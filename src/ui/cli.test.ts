@@ -1,10 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import { resolve, join } from 'node:path';
-import { resolveRepoPath, DEFAULT_DUNGEON } from './cli.js';
+import { parseRepoFlag, resolveRepoPath, suggestRealm, DEFAULT_DUNGEON } from './cli.js';
 
 const CWD = '/keep/of/the/realm';
 const never = () => false;
 const always = () => true;
+
+describe('parseRepoFlag — reading the summons alone', () => {
+  it('returns the absolute realm of a --repo summons', () => {
+    expect(parseRepoFlag(['--repo', '../castle'], CWD)).toBe(resolve(CWD, '../castle'));
+  });
+
+  it('returns null when no summons was issued', () => {
+    expect(parseRepoFlag([], CWD)).toBeNull();
+    expect(parseRepoFlag(['--repo'], CWD)).toBeNull();
+  });
+});
+
+describe('suggestRealm — the herald, unbidden', () => {
+  it('suggests the practice dungeon when it stands', () => {
+    expect(suggestRealm(CWD, always)).toBe(join(CWD, DEFAULT_DUNGEON));
+  });
+
+  it('suggests cwd itself otherwise', () => {
+    expect(suggestRealm(CWD, never)).toBe(CWD);
+  });
+});
 
 describe('resolveRepoPath — the herald at the gate', () => {
   it('honors --repo <path>', () => {
