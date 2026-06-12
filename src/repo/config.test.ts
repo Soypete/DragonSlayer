@@ -159,3 +159,66 @@ describe('mergeScrollOverDefaults (pure merging)', () => {
     expect(merged.excludePackages).toBeUndefined();
   });
 });
+
+describe('the Quartermaster sniffs the test script for a known runner', () => {
+  it('divines a jest coverage command from a jest trial', () => {
+    const divined = guessCommandsFromScripts({ test: 'jest --runInBand' });
+    expect(divined.testCommand).toBe('npm test');
+    expect(divined.coverageCommand).toBe(
+      'npx jest --coverage --coverageReporters=json-summary'
+    );
+  });
+
+  it('wraps the node native runner in c8 when "node --test" appears', () => {
+    const divined = guessCommandsFromScripts({ test: 'node --test ./test' });
+    expect(divined.coverageCommand).toBe(
+      'npx c8 --reporter=json-summary node --test'
+    );
+  });
+
+  it('recognizes the node:test spelling too', () => {
+    const divined = guessCommandsFromScripts({
+      test: 'glob -c "node --import tsx" node:test',
+    });
+    expect(divined.coverageCommand).toBe(
+      'npx c8 --reporter=json-summary node --test'
+    );
+  });
+});
+
+describe('explicit coverage scripts outrank the sniffed runner', () => {
+  it('test:coverage wins even when the trial smells of jest', () => {
+    const divined = guessCommandsFromScripts({
+      test: 'jest',
+      'test:coverage': 'jest --coverage',
+    });
+    expect(divined.coverageCommand).toBe('npm run test:coverage');
+  });
+
+  it('a lone coverage script wins over a node --test trial', () => {
+    const divined = guessCommandsFromScripts({
+      test: 'node --test',
+      coverage: 'c8 node --test',
+    });
+    expect(divined.coverageCommand).toBe('npm run coverage');
+  });
+});
+
+describe('the sniff stays its hand when the kit already serves', () => {
+  it('a vitest trial divines no extra coverage command', () => {
+    const divined = guessCommandsFromScripts({ test: 'vitest run' });
+    expect(divined.testCommand).toBe('npm test');
+    expect(divined.coverageCommand).toBeUndefined();
+  });
+
+  it('an unknown runner divines no coverage command either', () => {
+    const divined = guessCommandsFromScripts({ test: 'mocha spec/' });
+    expect(divined.coverageCommand).toBeUndefined();
+  });
+
+  it('ignores blank and non-string test scripts entirely', () => {
+    expect(guessCommandsFromScripts({ test: '   ' })).toEqual({});
+    expect(guessCommandsFromScripts({ test: 42 })).toEqual({});
+    expect(guessCommandsFromScripts({ test: ['jest'] })).toEqual({});
+  });
+});

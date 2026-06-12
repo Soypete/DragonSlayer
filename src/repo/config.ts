@@ -81,8 +81,24 @@ export function guessCommandsFromScripts(
     divined.coverageCommand = 'npm run test:coverage';
   } else if (has('coverage')) {
     divined.coverageCommand = 'npm run coverage';
+  } else if (has('test')) {
+    // No coverage script at the gate — sniff the test script's content
+    // (read its entrails) for a runner we know how to coax proof out of.
+    // Every divined command must emit istanbul's coverage-summary.json:
+    // it is the only dialect the sworn js interpreter reads.
+    const trial = (scripts.test as string).toLowerCase();
+    if (trial.includes('jest')) {
+      // jest carries istanbul within; json-summary makes it write the
+      // coverage-summary.json the interpreter expects.
+      divined.coverageCommand = 'npx jest --coverage --coverageReporters=json-summary';
+    } else if (trial.includes('node --test') || trial.includes('node:test')) {
+      // node's native runner speaks no istanbul of its own, so c8 wraps the
+      // trial and transcribes it into json-summary form.
+      divined.coverageCommand = 'npx c8 --reporter=json-summary node --test';
+    }
+    // else (vitest or an unknown runner): divine nothing — the
+    // standard-issue `npx vitest run --coverage` already covers it.
   }
-  // else: fall back to the standard-issue `npx vitest run --coverage`.
 
   if (has('test')) {
     divined.testCommand = 'npm test';
