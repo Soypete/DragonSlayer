@@ -25,6 +25,7 @@ Requires **Node 22+** (developed on 24) and npm.
 git clone <this-repo> gme && cd gme
 npm install
 npm run dev:dungeon        # play the bundled practice dungeon
+npm run dev                # open the campaign picker (every realm you know)
 ```
 
 The practice dungeon is a tiny deliberately-undertested project that ships with
@@ -35,11 +36,41 @@ the game — three dragons out of the box. To slay one for real:
 3. Back in the game, press `f` — the Forge runs real `vitest --coverage`,
    rescans, and any file that reached 100% gets its dragon slain, with bounty.
 
-## Questing in your own repo
+## Choosing a realm
 
-```bash
-npm run dev -- --repo /path/to/your/project
+The game decides which repo you're questing in, in this order:
+
+1. **`--repo <path>`** — an explicit summons always wins:
+   `npm run dev -- --repo /path/to/your/project`. Opening a repo this way
+   also registers it (see below), so next time the picker knows it.
+2. **The campaign picker** — launch with no flag and the title screen lists
+   every realm the game knows: campaigns with a save file in `~/.gme/saves/`
+   *and* any paths registered in `~/.gme/config.json`. It also offers a
+   one-keystroke **"Quest here"** suggestion (the default repo: the bundled
+   `./practice-dungeon` when you're in this repo's root, otherwise the
+   current directory) and **"Chart a new realm…"**, a prompt where you type
+   any path. Realms whose paths no longer exist are shown dimmed.
+
+### Adding repo paths to the config
+
+The picker's registry lives at `~/.gme/config.json` and is meant to be
+hand-edited — add any repos you want to see on the title screen:
+
+```json
+{
+  "version": 1,
+  "repos": [
+    "/home/you/code/my-api",
+    "/home/you/code/my-app"
+  ]
+}
 ```
+
+Every repo you open in-game is appended automatically; entries are never
+auto-removed, so delete stale paths yourself. Saves are keyed by absolute
+path, so a moved repo starts a fresh campaign.
+
+## Questing in your own repo
 
 The game guesses your test commands from `package.json` scripts. To be explicit,
 drop a `gme.config.json` in the target repo:
@@ -51,21 +82,42 @@ drop a `gme.config.json` in the target repo:
   "e2eCommand": "npm run test:e2e",
   "coverageSummaryGlobs": ["coverage/coverage-summary.json"],
   "sourceGlobs": ["src/**/*.{ts,tsx}"],
-  "excludeGlobs": ["**/*.test.*", "**/dist/**"]
+  "excludeGlobs": ["**/*.test.*", "**/dist/**"],
+  "packages": ["packages/*"],
+  "excludePackages": ["packages/legacy-*"]
 }
 ```
+
+Every field is optional; omitted fields keep their defaults:
+
+| Field | What it does | Default |
+|-------|--------------|---------|
+| `testCommand` | runs the unit suite | divined from scripts, else `npx vitest run` |
+| `coverageCommand` | must emit a json-summary | divined, else `npx vitest run --coverage` |
+| `e2eCommand` | the end-to-end suite | divined from `test:e2e` |
+| `coverageSummaryGlobs` | where coverage summaries are found | `coverage/coverage-summary.json` + `**/coverage/coverage-summary.json` |
+| `sourceGlobs` | files that can host dragons | `src`, `app`, `lib`, and `{packages,apps,libs}/*/src` trees |
+| `excludeGlobs` | never host dragons | tests, specs, `node_modules`, `dist`, `.d.ts` |
+| `packages` | monorepo allow-list (see below) | unset — every package counts |
+| `excludePackages` | monorepo deny-list | unset |
 
 Requirements for the target repo: its coverage command must emit an
 istanbul-style `coverage-summary.json` (vitest: coverage reporter
 `json-summary`; jest: `--coverageReporters=json-summary`). Playwright is
 detected automatically for the e2e quest line.
 
-> **Monorepos:** the scanner currently reads the *newest single*
-> `coverage-summary.json` it finds — it does not yet merge summaries across
-> packages. In a turbo/pnpm/nx workspace, point the game at one package
-> (e.g. `--repo path/to/monorepo/apps/web`) for accurate dragons. Merged
-> multi-package realms and an in-game repo picker are planned — see the
-> issue tracker.
+### Monorepos
+
+In a turbo/pnpm/nx workspace where each package emits its own
+`coverage/coverage-summary.json`, the scanner merges **all** of them into one
+realm: each package's file paths are prefixed with the package directory
+(`packages/api/src/auth.ts`), duplicate entries resolve newest-wins, and the
+realm's totals are recomputed from the merged set — so dragons span the whole
+kingdom and victory means every package at 100%.
+
+The `packages` / `excludePackages` globs control which workspaces count: list
+package *directories* relative to the repo root (e.g. `"packages/*"`,
+`"apps/web"`). Include `"."` in `packages` to also keep a root-level summary.
 
 ## How the game works
 
@@ -87,6 +139,31 @@ detected automatically for the e2e quest line.
 - **Victory** — 100% total line coverage *and* a configured, passing e2e suite.
 - **Saves** — automatic, per-repo, at `~/.gme/saves/`. Quit anytime with
   `ctrl+c`; your campaign continues where you left off.
+
+### Winning points
+
+Everything pays in XP (which sets your rank) and gold (which the Guild Shop
+drains). Where it all comes from:
+
+| Deed | XP | Gold |
+|------|----|------|
+| Typing battle | WPM × accuracy² × scrolls × (0.5 + accuracy/2) | damage ÷ 10 |
+| Coverage gained at the Forge | +15 per +1% total line coverage | — |
+| Dragon slain (file hits 100%) | 2 × the dragon's max HP | 50 bounty |
+| Coverage quests (50/75/90/100%) | 150 / 300 / 600 / 1200 | XP ÷ 10 |
+| Slay / TDD / CI / e2e quests | per quest | XP ÷ 10 |
+| Sword-school trial | tier × 10 × stars (up to 180) | — |
+| Daily augury | blessing: ×1.1 battle XP today; an honored curse pays redemption XP tomorrow | — |
+
+Accuracy is squared everywhere, so clean typing beats fast typing; real tests
+beat both — the Forge and its slain-dragon bounties are the only road to
+victory. Three-star trials also sharpen your blade (×1.5 damage next battle).
+
+### Share your campaign
+
+Slain something big? Post your daily stats — rank, XP, coverage %, dragons
+slain (the title screen and victory screen both show them) — on Discord or
+socials with **#PeteTheDragonSlayer** so other knights can find the guild.
 
 ### Keys
 
@@ -115,14 +192,17 @@ All game state is plain JSON in your home directory — never inside the game
 repo or the repo you're questing in:
 
 ```
-~/.gme/saves/<sha1-of-absolute-repo-path>.json
+~/.gme/saves/<sha1-of-absolute-repo-path>.json   # one campaign per target repo
+~/.gme/config.json                               # the realm registry (repo paths)
 ```
 
-One file per target repo (XP, gold, rank, dragons, quests, stats). It's written
-after every battle, forge, and scan. To reset a campaign, delete its file (or
-pick "Swear a new oath" on the title screen). The loader tolerates missing or
-corrupt files, so hand-editing is safe-ish — and yes, that means you can give
-yourself gold; the Oracle sees all and judges silently.
+One save per target repo (XP, gold, rank, dragons, quests, stats), written
+after every battle, forge, and scan. Because saves are keyed by the absolute
+path, moving a repo starts a fresh campaign at its new address. To reset a
+campaign, delete its file (or pick "Swear a new oath" on the title screen).
+The loaders tolerate missing or corrupt files, so hand-editing either file is
+safe-ish — and yes, that means you can give yourself gold; the Oracle sees all
+and judges silently.
 
 Architecture notes live in [ARCHITECTURE.md](ARCHITECTURE.md): pure modules
 (`src/game`, `src/repo`, `src/typing`, `src/ai`, `src/vim`) that only share

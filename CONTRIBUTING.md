@@ -13,6 +13,17 @@ npm run dev:dungeon   # you should be on the title screen in seconds
 
 Node 22+ required (developed on 24). No other tooling, no accounts, no env vars.
 
+New to the game itself? The [README](README.md) covers how to play, how to
+point the game at your own repo, and how every point of XP and gold is earned
+("Winning points") — read it before changing game balance.
+
+## Finding work
+
+Check the [issue tracker](https://github.com/Soypete/DragonSlayer/issues) —
+issues labeled **good first issue** are scoped for newcomers. Comment on an
+issue before starting so two knights don't ride at the same dragon. Balance
+complaints, playtest notes, and tutorial gaps are all first-class quests.
+
 ## The laws of the realm
 
 1. **Tests ride with every change.** New logic ships with vitest coverage;
@@ -71,3 +82,9 @@ weird, pars unfair) are first-class issues — this game is tuned by playtest.
 Be the kind of knight other people want in their party. Newcomers learning
 vim, typing, or testing are the entire point of this game — condescension is
 the one dragon we slay on sight.
+
+## Spread the word
+
+Playing more than contributing? That helps too — share your daily campaign
+stats (rank, XP, coverage %, dragons slain) on Discord or socials with
+**#PeteTheDragonSlayer** so other knights can find the guild.
