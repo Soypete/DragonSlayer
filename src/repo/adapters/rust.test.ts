@@ -3,10 +3,12 @@ import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveConfig } from '../config.js';
+import { scanRepo } from '../scanner.js';
 import { rustAdapter } from './rust.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const citadel = path.join(here, '..', '__fixtures__', 'crab-citadel');
+const workspaceCrab = path.join(here, '..', '__fixtures__', 'workspace-crab');
 
 // The fixture's coverage.json speaks in synthetic absolute paths under
 // /realm/crab-citadel, so the parser tests hand in that root as ctx.repoPath.
@@ -132,5 +134,31 @@ describe('the Quartermaster equips a rust realm', () => {
     );
     expect(cfg.coverageSummaryGlobs).toEqual(['coverage.json']);
     expect(cfg.testGlobs).toEqual(['tests/**/*.rs']);
+  });
+});
+
+describe('the Quartermaster equips a rust workspace realm', () => {
+  it('derives source and test globs from Cargo workspace members', async () => {
+    const cfg = await resolveConfig(workspaceCrab);
+    expect(cfg.language).toBe('rust');
+    expect(cfg.sourceGlobs).toEqual([
+      'crates/core/src/**/*.rs',
+      'crates/cli/src/**/*.rs',
+    ]);
+    expect(cfg.testGlobs).toEqual([
+      'crates/core/tests/**/*.rs',
+      'crates/core/src/**/*_tests.rs',
+      'crates/cli/tests/**/*.rs',
+      'crates/cli/src/**/*_tests.rs',
+    ]);
+  });
+
+  it('lets the cartographer survey workspace member sources and tests', async () => {
+    const scan = await scanRepo(await resolveConfig(workspaceCrab));
+    expect(scan.sourceFiles).toEqual([
+      'crates/cli/src/main.rs',
+      'crates/core/src/lib.rs',
+    ]);
+    expect(scan.testFiles).toEqual(['crates/core/tests/core.rs']);
   });
 });

@@ -19,6 +19,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import type { CoverageFormat, GameConfig, RepoLanguage } from '../types.js';
 import { adapterForFormat, adapterForLanguage } from './adapters/adapter.js';
+import { rustWorkspaceGlobs } from './cargo.js';
 import { detectLanguage } from './detect.js';
 
 const TONGUES: readonly RepoLanguage[] = ['js', 'go', 'python', 'rust'];
@@ -144,6 +145,11 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === 'string');
 }
 
+async function applyCargoWorkspaceGlobs(cfg: GameConfig): Promise<GameConfig> {
+  const globs = await rustWorkspaceGlobs(cfg.repoPath);
+  return globs ? { ...cfg, ...globs } : cfg;
+}
+
 async function readJsonScroll(
   absPath: string
 ): Promise<Record<string, unknown> | null> {
@@ -181,6 +187,7 @@ export async function resolveConfig(repoPath: string): Promise<GameConfig> {
   }
 
   const defaults = defaultConfig(absRepo, detected);
+  if (detected === 'rust') return applyCargoWorkspaceGlobs(defaults);
   if (detected !== 'js') return defaults;
 
   const pkg = await readJsonScroll(path.join(absRepo, 'package.json'));
