@@ -183,7 +183,10 @@ export async function resolveConfig(repoPath: string): Promise<GameConfig> {
       : null;
     const tongue =
       fromFormat ?? (isLanguage(scroll.language) ? scroll.language : detected);
-    return mergeScrollOverDefaults(defaultConfig(absRepo, tongue), scroll);
+    const defaults = defaultConfig(absRepo, tongue);
+    const workspaceDefaults =
+      tongue === 'rust' ? await applyCargoWorkspaceGlobs(defaults) : defaults;
+    return mergeScrollOverDefaults(workspaceDefaults, scroll);
   }
 
   const defaults = defaultConfig(absRepo, detected);

@@ -75,7 +75,7 @@ export function cargoMemberRoots(raw: string, repoPath: string): string[] {
 }
 
 export function rustWorkspaceGlobsFromRoots(roots: string[]): RustWorkspaceGlobs | null {
-  if (roots.length <= 1) return null;
+  if (roots.length === 0 || (roots.length === 1 && roots[0] === '')) return null;
   return {
     sourceGlobs: roots.map((root) =>
       root === '' ? 'src/**/*.rs' : `${root}/src/**/*.rs`
@@ -115,4 +115,3 @@ export async function rustWorkspaceGlobs(
   if (!raw) return null;
   return rustWorkspaceGlobsFromRoots(cargoMemberRoots(raw, repoPath));
 }
-

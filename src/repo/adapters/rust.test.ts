@@ -9,6 +9,12 @@ import { rustAdapter } from './rust.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const citadel = path.join(here, '..', '__fixtures__', 'crab-citadel');
 const workspaceCrab = path.join(here, '..', '__fixtures__', 'workspace-crab');
+const workspaceCrabExplicit = path.join(
+  here,
+  '..',
+  '__fixtures__',
+  'workspace-crab-explicit'
+);
 
 // The fixture's coverage.json speaks in synthetic absolute paths under
 // /realm/crab-citadel, so the parser tests hand in that root as ctx.repoPath.
@@ -141,6 +147,9 @@ describe('the Quartermaster equips a rust workspace realm', () => {
   it('derives source and test globs from Cargo workspace members', async () => {
     const cfg = await resolveConfig(workspaceCrab);
     expect(cfg.language).toBe('rust');
+    expect(cfg.coverageCommand).toBe(
+      'cargo llvm-cov --workspace --json --output-path coverage.json'
+    );
     expect(cfg.sourceGlobs).toEqual([
       'crates/core/src/**/*.rs',
       'crates/cli/src/**/*.rs',
@@ -160,5 +169,11 @@ describe('the Quartermaster equips a rust workspace realm', () => {
       'crates/core/src/lib.rs',
     ]);
     expect(scan.testFiles).toEqual(['crates/core/tests/core.rs']);
+  });
+
+  it('lets explicit scroll globs override Cargo workspace globs', async () => {
+    const cfg = await resolveConfig(workspaceCrabExplicit);
+    expect(cfg.sourceGlobs).toEqual(['hand-picked/src/**/*.rs']);
+    expect(cfg.testGlobs).toEqual(['hand-picked/tests/**/*.rs']);
   });
 });

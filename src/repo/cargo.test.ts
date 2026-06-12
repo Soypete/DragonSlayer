@@ -52,8 +52,15 @@ describe('Cargo workspace metadata', () => {
     ]);
   });
 
-  it('builds source and test globs only for multi-member workspaces', () => {
-    expect(rustWorkspaceGlobsFromRoots(['crates/core'])).toBeNull();
+  it('keeps root-only crates on the standard Rust defaults', () => {
+    expect(rustWorkspaceGlobsFromRoots([''])).toBeNull();
+  });
+
+  it('builds source and test globs for subdirectory workspace members', () => {
+    expect(rustWorkspaceGlobsFromRoots(['crates/core'])).toEqual({
+      sourceGlobs: ['crates/core/src/**/*.rs'],
+      testGlobs: ['crates/core/tests/**/*.rs', 'crates/core/src/**/*_tests.rs'],
+    });
     expect(rustWorkspaceGlobsFromRoots(['crates/core', 'crates/cli'])).toEqual({
       sourceGlobs: ['crates/core/src/**/*.rs', 'crates/cli/src/**/*.rs'],
       testGlobs: [
@@ -77,4 +84,3 @@ describe('Cargo workspace metadata', () => {
     });
   });
 });
-
