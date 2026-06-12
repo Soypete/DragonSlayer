@@ -223,6 +223,27 @@ export interface SaveGame {
   };
 }
 
+// ── Global registry (cross-campaign) ─────────────────────────────────────────
+
+/**
+ * The hand-editable ledger of known realms at `~/.gme/config.json`.
+ * Stewards may add repo paths by hand; the game registers them on open.
+ */
+export interface GlobalRegistry {
+  version: 1;
+  /** Absolute paths of known realms (target repos). */
+  repos: string[];
+}
+
+/** One row in the title-screen campaign picker. */
+export interface CampaignEntry {
+  repoPath: string;
+  /** Chronicle found in the saves vault, if any. */
+  save: SaveGame | null;
+  /** False when the realm's path no longer stands on disk. */
+  exists: boolean;
+}
+
 // ── Vim trials (sword-school) ────────────────────────────────────────────────
 
 export type VimMode = 'normal' | 'insert' | 'operator-pending' | 'search';
