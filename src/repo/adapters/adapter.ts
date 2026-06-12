@@ -13,6 +13,7 @@ import type {
   RepoLanguage,
   ToolRequirement,
 } from '../../types.js';
+import { goAdapter } from './go.js';
 import { istanbulAdapter } from './istanbul.js';
 
 /** Provenance and hints handed to an interpreter alongside the raw artifact. */
@@ -55,6 +56,7 @@ export interface LanguageAdapter {
 /** Every interpreter sworn to the guild. New tongues enlist here. */
 const GUILD: LanguageAdapter[] = [
   istanbulAdapter,
+  goAdapter,
 ];
 
 /** The interpreter for a coverage dialect, if one has sworn the oath. */
