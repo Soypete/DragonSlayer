@@ -1,0 +1,4 @@
+{
+  "coverageCommand": "cargo llvm-cov --workspace --json --output-path coverage.json"
+}
+
