@@ -1195,6 +1195,66 @@ export const TRIALS: VimTrial[] = [
       'Press V — the first oath is marked and the stance reads VISUAL LINE. j, then j, extend the mark down over all three oaths (watch the count grow). Now d falls on the whole block. Only the final line remains. Four keys — select, then strike.',
     ],
   },
+  {
+    id: 't7-record-the-art',
+    tier: 7,
+    title: 'Record the Art',
+    lesson: {
+      heading: 'q records the keys you press; @ unleashes them again',
+      body:
+        'A macro is the arts you already know, captured and replayed. qa begins recording into register ' +
+        'a; every key you press is remembered until you press q again to stop. Then @a performs the ' +
+        'whole recorded sequence in one stroke. Record an edit that ends by stepping to the next line, ' +
+        'and a single @a repeats it there. ' +
+        'Your task: each banner needs a "!" added. Record the edit on the first banner (append !, then ' +
+        'drop a line), then unleash it once on the second.',
+      demoKeys: 'qaA!<esc>jq@a',
+    },
+    keysTaught: ['q', '@', 'qa…q'],
+    startLines: ['hail the king', 'hail the queen', 'hail the realm'],
+    startCursor: { row: 0, col: 0 },
+    goal: {
+      kind: 'text',
+      lines: ['hail the king!', 'hail the queen!', 'hail the realm'],
+    },
+    par: 9,
+    parSolution: 'qaA!<esc>jq@a',
+    hints: [
+      'Record the edit-and-step into a register, stop the recording, then replay it once.',
+      'Type qa, then A!<esc>, then j, then q to stop — then @a.',
+      'qa starts recording into a. A jumps to end-of-line, type !, Escape, then j drops a line — q stops the take (register a now holds A,!,esc,j). The first banner already reads "hail the king!". Now @a replays the whole art on the second banner: "hail the queen!". Nine keys; the third banner is left for you.',
+    ],
+  },
+  {
+    id: 't7-unleash-the-column',
+    tier: 7,
+    title: 'Unleash Down the Column',
+    lesson: {
+      heading: 'A count before @ runs the macro down a whole column — 3@a',
+      body:
+        'Once an art is recorded, a count unleashes it many times: 3@a runs register a three times, ' +
+        'each replay picking up where the last left off. This is the macro\'s whole purpose — record ' +
+        'one repetitive edit, then sweep it down a column of lines that all need the same change. ' +
+        '(@@ repeats the last macro once more, if you prefer to feel each strike.) ' +
+        'Your task: every rank in the roll needs a full stop. Record the edit on rank 1, then unleash ' +
+        'it three times to finish ranks 2 through 4.',
+      demoKeys: 'qaA.<esc>jq3@a',
+    },
+    keysTaught: ['3@a', '@@'],
+    startLines: ['rank 1', 'rank 2', 'rank 3', 'rank 4', 'done'],
+    startCursor: { row: 0, col: 0 },
+    goal: {
+      kind: 'text',
+      lines: ['rank 1.', 'rank 2.', 'rank 3.', 'rank 4.', 'done'],
+    },
+    par: 10,
+    parSolution: 'qaA.<esc>jq3@a',
+    hints: [
+      'Record the edit-and-step once, then put a count of 3 in front of the replay.',
+      'Type qaA.<esc>jq to record, then 3@a.',
+      'qa records: A appends, type the full stop, Escape, j drops a line — q stops. Rank 1 already ends in a dot. Now 3@a runs the art three more times, dotting ranks 2, 3, and 4 in one breath; "done" is untouched. Everything from the Scribe\'s Arts, recorded once and unleashed. Ten keys.',
+    ],
+  },
 ];
 
 // ── Scoring ──────────────────────────────────────────────────────────────────
