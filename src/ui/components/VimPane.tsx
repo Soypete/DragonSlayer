@@ -56,6 +56,15 @@ function StanceLine({ buffer }: { buffer: VimBuffer }) {
       </Text>
     );
   }
+  if (buffer.mode === 'visual-line') {
+    const anchor = buffer.visualStart?.row ?? buffer.cursor.row;
+    const span = Math.abs(buffer.cursor.row - anchor) + 1;
+    return (
+      <Text color={COLORS.torch}>
+        -- VISUAL LINE -- ({span} line{span === 1 ? '' : 's'} marked; d/y/c strikes them, esc cancels)
+      </Text>
+    );
+  }
   const pending = [
     buffer.pendingCount !== null ? String(buffer.pendingCount) : '',
     buffer.pendingOperator ?? '',
