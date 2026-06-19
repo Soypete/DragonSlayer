@@ -333,6 +333,23 @@ describe('tier 3 — delete, yank, put', () => {
     expect(run(['a', 'b'], '5dd').lines).toEqual(['']);
   });
 
+  it('2cc changes a run of lines and opens insert', () => {
+    const b = run(['a', 'b', 'c', 'd'], '2ccnew<esc>');
+    expect(b.lines).toEqual(['new', 'c', 'd']);
+    expect(b.mode).toBe('normal');
+  });
+
+  it('3yy yanks three lines line-wise; p pastes the block', () => {
+    const b = run(['a', 'b', 'c', 'd'], '3yy');
+    expect(b.register).toEqual({ text: ['a', 'b', 'c'], linewise: true });
+    expect(run(['a', 'b', 'c', 'd'], '3yyGp').lines).toEqual(['a', 'b', 'c', 'd', 'a', 'b', 'c']);
+  });
+
+  it('2cc clamps past the last line without throwing', () => {
+    const b = run(['a', 'b'], '5ccgone<esc>');
+    expect(b.lines).toEqual(['gone']);
+  });
+
   it('dj reaps this line and the next; dj on the last line whiffs', () => {
     expect(run(['a', 'b', 'c'], 'dj').lines).toEqual(['c']);
     expect(run(['a', 'b', 'c'], 'dj', { row: 2, col: 0 }).lines).toEqual(['a', 'b', 'c']);
