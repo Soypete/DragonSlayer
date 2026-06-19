@@ -1014,6 +1014,47 @@ export const TRIALS: VimTrial[] = [
       'Press / and type rusty, then Enter — the cursor leaps to the r of "rusty" four lines down. Now c, i, w — the word vanishes, quill drawn. Type gleaming, press Escape. The torch gleams. Nineteen keys across eight lines.',
     ],
   },
+
+  // ── Tier 7 · Advanced Arts ───────────────────────────────────────────────
+  {
+    id: 't7-choose-your-cut',
+    tier: 7,
+    title: 'Choose Your Cut',
+    lesson: {
+      heading: 'Four word-strikes, one decision: cw · ciw · diw · daw — pick by intent',
+      body:
+        'You already wield every word-strike; mastery is knowing WHICH to draw. Read your intent: ' +
+        'standing at a word\'s START and replacing the rest → cw. Anywhere INSIDE a word, replacing it ' +
+        'whole → ciw (no travel to the start). REMOVING a word for good → daw, which swallows the ' +
+        'trailing space so the line closes ranks (diw would leave a double space behind). REPLACING a ' +
+        'word in place → ciw, or diw then type into the gap. ' +
+        'Your task: the herald stands mid-word in "craven" — the wrong cry. Replace the whole word with ' +
+        '"valiant" without first walking to its start. Which cut? You are inside it, and replacing it: ciw.',
+      demoKeys: 'ciwvaliant<esc>',
+    },
+    keysTaught: ['cw', 'ciw', 'diw', 'daw'],
+    startLines: [
+      'the herald rehearses the proclamation:',
+      'hear ye, the craven prince returns',
+      'let the gates be opened',
+    ],
+    startCursor: { row: 1, col: 15 },
+    goal: {
+      kind: 'text',
+      lines: [
+        'the herald rehearses the proclamation:',
+        'hear ye, the valiant prince returns',
+        'let the gates be opened',
+      ],
+    },
+    par: 11,
+    parSolution: 'ciwvaliant<esc>',
+    hints: [
+      'You are standing inside the word, and you are replacing it — that points to one cut, not a deletion and not a start-of-word change.',
+      'Type ciw, then valiant, then Escape.',
+      'You stand on the a in "craven", mid-word. Because you are INSIDE the word and REPLACING it, the cut is ciw — not cw (that needs the start) and not daw (that removes, not replaces). c, i, w empties the whole word with the quill drawn; type valiant, press Escape. "the valiant prince returns". Eleven keys, no travel.',
+    ],
+  },
 ];
 
 // ── Scoring ──────────────────────────────────────────────────────────────────
