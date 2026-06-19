@@ -1070,7 +1070,7 @@ function masteredCount(results: Record<string, TrialResult>, tier: number): numb
   return TRIALS.filter((t) => t.tier === tier && (results[t.id]?.stars ?? 0) >= 2).length;
 }
 
-const MAX_TIER = 6;
+const MAX_TIER = 7;
 /** ≥ this many 2-star-or-better trials in a tier flings open the next gate. */
 const UNLOCK_THRESHOLD = 3;
 

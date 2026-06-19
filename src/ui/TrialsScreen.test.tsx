@@ -118,7 +118,7 @@ describe('the Sword-School — trial roster', () => {
     expect(lastFrame()).toContain('❯ ☆☆☆ Eastward, Squire');
     stdin.write('G');
     await settle();
-    expect(lastFrame()).toContain('❯ ☆☆☆ The Grand Trial of the Blade');
+    expect(lastFrame()).toContain('❯ ☆☆☆ Choose Your Cut');
     stdin.write('g');
     await settle();
     stdin.write('g');
@@ -129,7 +129,7 @@ describe('the Sword-School — trial roster', () => {
 
   it('refuses a sealed trial but yields to esc', async () => {
     const { lastFrame, stdin, unmount } = await bootSchool();
-    stdin.write('G'); // tier 6 — sealed for a fresh squire
+    stdin.write('G'); // last trial (tier 7) — sealed for a fresh squire
     await settle();
     stdin.write('\r');
     await settle();

@@ -41,13 +41,15 @@ function masterTier(progress: VimProgress, tier: number, stars: 1 | 2 | 3): VimP
 // ── The curriculum scroll itself ─────────────────────────────────────────────
 
 describe('TRIALS curriculum structure', () => {
-  it('spans all six tiers with 4–6 trials each', () => {
+  it('spans the foundational six tiers with 4–6 trials each', () => {
+    // Tiers 1–6 are the settled core; tier 7 (Advanced Arts) fills in across several PRs,
+    // so its count is only asserted once it lands its full lesson set.
     for (let tier = 1; tier <= 6; tier++) {
       const count = TRIALS.filter((t) => t.tier === tier).length;
       expect(count, `tier ${tier} trial count`).toBeGreaterThanOrEqual(4);
       expect(count, `tier ${tier} trial count`).toBeLessThanOrEqual(6);
     }
-    expect(TRIALS.every((t) => t.tier >= 1 && t.tier <= 6)).toBe(true);
+    expect(TRIALS.every((t) => t.tier >= 1 && t.tier <= 7)).toBe(true);
   });
 
   it('lists trials in tier order (the curriculum reads top to bottom)', () => {
@@ -185,7 +187,7 @@ describe('trialXp', () => {
 
   it('is deterministic and positive across the whole grid', () => {
     for (const stars of [1, 2, 3] as const) {
-      for (let tier = 1; tier <= 6; tier++) {
+      for (let tier = 1; tier <= 7; tier++) {
         expect(trialXp(stars, tier)).toBeGreaterThan(0);
         expect(trialXp(stars, tier)).toBe(trialXp(stars, tier));
       }
@@ -289,11 +291,12 @@ describe('applyTrial', () => {
 
   it('mastering every tier in sequence opens the whole school', () => {
     let p = newVimProgress();
+    // Mastering tiers 1..6 in turn flings open the gate to the final tier, 7.
     for (let tier = 1; tier <= 6; tier++) {
       expect(p.unlockedTier).toBe(tier);
       p = masterTier(p, tier, 3);
     }
-    expect(p.unlockedTier).toBe(6); // there is no tier 7
+    expect(p.unlockedTier).toBe(7); // tier 7 — the Advanced Arts — is the last gate
   });
 
   it('mastering a locked tier early does not skip gates', () => {
@@ -349,14 +352,14 @@ describe('nextTrial', () => {
       p,
       makeResult({ trialId: straggler.id, par: straggler.par, keystrokes: straggler.par, hintsUsed: 1, stars: 2, blade: 1.2 }),
     );
-    for (let tier = 2; tier <= 6; tier++) p = masterTier(p, tier, 3);
+    for (let tier = 2; tier <= 7; tier++) p = masterTier(p, tier, 3);
     expect(nextTrial(p)?.id).toBe(straggler.id);
   });
 
   it('returns null only when every trial in the school is 3-starred', () => {
     let p = newVimProgress();
-    for (let tier = 1; tier <= 6; tier++) p = masterTier(p, tier, 3);
-    expect(p.unlockedTier).toBe(6);
+    for (let tier = 1; tier <= 7; tier++) p = masterTier(p, tier, 3);
+    expect(p.unlockedTier).toBe(7);
     expect(Object.keys(p.results)).toHaveLength(TRIALS.length);
     expect(nextTrial(p)).toBeNull();
   });
