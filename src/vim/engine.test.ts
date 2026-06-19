@@ -853,3 +853,92 @@ describe('integration — whole sword forms', () => {
     expect(b.lines).toEqual(['ale "flat" ale', 'mead "flat" mead']);
   });
 });
+
+describe('paragraph motions { } and objects ip / ap', () => {
+  // A scroll of three paragraphs separated by blank lines.
+  const scroll = [
+    'first line of one', // 0
+    'second line of one', // 1
+    '', // 2
+    'lone middle stanza', // 3
+    '', // 4
+    'final paragraph here', // 5
+    'and its second line', // 6
+  ];
+
+  it('} jumps forward to the next blank-line boundary', () => {
+    const b = run(scroll, '}');
+    expect(b.cursor.row).toBe(2);
+  });
+
+  it('a second } leaps to the following boundary', () => {
+    const b = run(scroll, '}}');
+    expect(b.cursor.row).toBe(4);
+  });
+
+  it('{ jumps backward to the previous boundary', () => {
+    const b = run(scroll, '{', { row: 5, col: 0 });
+    expect(b.cursor.row).toBe(4);
+  });
+
+  it('} honors a count', () => {
+    const b = run(scroll, '2}');
+    expect(b.cursor.row).toBe(4);
+  });
+
+  it('} at the file edge lands on the last line and stops', () => {
+    const b = run(scroll, '5}');
+    expect(b.cursor.row).toBe(6);
+  });
+
+  it('{ at the top lands on the first line', () => {
+    const b = run(scroll, '{', { row: 1, col: 0 });
+    expect(b.cursor.row).toBe(0);
+  });
+
+  it('d} deletes line-wise from the cursor to the boundary', () => {
+    const b = run(scroll, 'd}');
+    expect(b.lines).toEqual(['', 'lone middle stanza', '', 'final paragraph here', 'and its second line']);
+    expect(b.register?.linewise).toBe(true);
+  });
+
+  it('dip deletes the inner paragraph, leaving its blank neighbors', () => {
+    const b = run(scroll, 'dip');
+    expect(b.lines).toEqual(['', 'lone middle stanza', '', 'final paragraph here', 'and its second line']);
+    expect(b.register?.linewise).toBe(true);
+  });
+
+  it('dap deletes the paragraph AND a trailing blank line', () => {
+    const b = run(scroll, 'dap');
+    expect(b.lines).toEqual(['lone middle stanza', '', 'final paragraph here', 'and its second line']);
+  });
+
+  it('dap on the last paragraph swallows the preceding blank line', () => {
+    const b = run(scroll, 'dap', { row: 5, col: 0 });
+    expect(b.lines).toEqual(['first line of one', 'second line of one', '', 'lone middle stanza']);
+  });
+
+  it('cip empties the paragraph and opens insert', () => {
+    const b = run(scroll, 'ciprewritten<esc>', { row: 3, col: 0 });
+    expect(b.lines).toEqual([
+      'first line of one',
+      'second line of one',
+      '',
+      'rewritten',
+      '',
+      'final paragraph here',
+      'and its second line',
+    ]);
+    expect(b.mode).toBe('normal');
+  });
+
+  it('yap then p duplicates the paragraph with its blank', () => {
+    const b = run(scroll, 'yapGp', { row: 0, col: 0 });
+    expect(b.lines.slice(0, 3)).toEqual(['first line of one', 'second line of one', '']);
+  });
+
+  it('di{ still seizes a brace pair — the object form is unshadowed by the motion', () => {
+    const b = run(['guard { gold } here'], 'di{', { row: 0, col: 6 });
+    expect(b.lines).toEqual(['guard {} here']);
+  });
+});

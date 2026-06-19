@@ -363,7 +363,7 @@ function applyLineOperator(b: VimBuffer, op: Op, rawR1: number, rawR2: number): 
 
 // ── Motions ──────────────────────────────────────────────────────────────────
 
-const CHAR_MOTIONS = new Set(['h', 'j', 'k', 'l', 'w', 'b', 'e', '0', '^', '$', 'G']);
+const CHAR_MOTIONS = new Set(['h', 'j', 'k', 'l', 'w', 'b', 'e', '0', '^', '$', 'G', '{', '}']);
 
 function normalMotionCursor(b: VimBuffer, m: string, count: number, explicit: boolean): VimCursor {
   const { lines, cursor } = b;
@@ -411,6 +411,11 @@ function normalMotionCursor(b: VimBuffer, m: string, count: number, explicit: bo
     case 'gg': {
       const row = explicit ? clamp(count - 1, 0, lastRow) : 0;
       return { row, col: firstNonBlank(lines[row]) };
+    }
+    case '}':
+    case '{': {
+      const row = paragraphTarget(lines, cursor.row, m === '}' ? 1 : -1, count);
+      return { row, col: clampCol(lines[row], cursor.col) };
     }
   }
   return cursor;
@@ -492,6 +497,17 @@ function execMotion(b: VimBuffer, pending: Pending, m: string): VimKeyResult {
   const op = pending.op;
   const { cursor, lines } = b;
   const lastRow = lines.length - 1;
+
+  if (op && (m === '{' || m === '}')) {
+    // Paragraph motions act line-wise under an operator (d}, y{, c}). vi excludes
+    // the blank boundary line itself, so step one line back toward the cursor —
+    // except at the file edge, where the boundary is content, not a blank.
+    const dir = m === '}' ? 1 : -1;
+    let target = paragraphTarget(lines, cursor.row, dir, count);
+    if (isBlankLine(lines[target]) && target !== cursor.row) target -= dir;
+    const [lo, hi] = target < cursor.row ? [target, cursor.row] : [cursor.row, target];
+    return applyLineOperator(b, op, lo, hi);
+  }
 
   if (op && (m === 'j' || m === 'k' || m === 'G' || m === 'gg')) {
     // Line-wise operator motions.
@@ -642,6 +658,52 @@ function pairObjectSpan(
   return { start: innerStart, end: closePos };
 }
 
+/** A paragraph boundary is a blank (empty / all-whitespace) line. */
+function isBlankLine(line: string): boolean {
+  return line.trim().length === 0;
+}
+
+/**
+ * Resolve `count` paragraph jumps from `row` in `dir` (+1 for `}`, -1 for `{`).
+ * Like vi: stop on the next blank line, or the first/last line at the file's edge.
+ */
+function paragraphTarget(lines: string[], row: number, dir: 1 | -1, count: number): number {
+  let r = row;
+  const lastRow = lines.length - 1;
+  for (let n = 0; n < count; n++) {
+    let next = r + dir;
+    while (next > 0 && next < lastRow && !isBlankLine(lines[next])) next += dir;
+    r = clamp(next, 0, lastRow);
+    if (r === 0 || r === lastRow) break; // edge reached; further jumps cannot move
+  }
+  return r;
+}
+
+/**
+ * inner/around paragraph: the run of non-blank lines the cursor sits in (a run of
+ * blank lines if it sits on one). `ap` also swallows the blank lines that follow
+ * (or precede, at the file's end); `ip` takes the run alone.
+ */
+function paragraphObjectSpan(
+  lines: string[],
+  cur: VimCursor,
+  around: boolean,
+): { startRow: number; endRow: number } | null {
+  const lastRow = lines.length - 1;
+  const onBlank = isBlankLine(lines[cur.row]);
+  let s = cur.row;
+  let e = cur.row;
+  while (s > 0 && isBlankLine(lines[s - 1]) === onBlank) s--;
+  while (e < lastRow && isBlankLine(lines[e + 1]) === onBlank) e++;
+  if (around && !onBlank) {
+    let e2 = e;
+    while (e2 < lastRow && isBlankLine(lines[e2 + 1])) e2++;
+    if (e2 > e) e = e2;
+    else while (s > 0 && isBlankLine(lines[s - 1])) s--; // no trailing blanks: take the leading ones
+  }
+  return { startRow: s, endRow: e };
+}
+
 function execTextObject(b: VimBuffer, pending: Pending, objChar: string): VimKeyResult {
   const op = pending.op as Op;
   const around = pending.obj === 'a';
@@ -653,7 +715,12 @@ function execTextObject(b: VimBuffer, pending: Pending, objChar: string): VimKey
     span = pairObjectSpan(b.lines, b.cursor, '(', ')', around);
   else if (objChar === '{' || objChar === '}' || objChar === 'B')
     span = pairObjectSpan(b.lines, b.cursor, '{', '}', around);
-  else return abortPending(b);
+  else if (objChar === 'p') {
+    // Paragraph objects are line-wise (dip/dap/cip/yap), like dd's register.
+    const para = paragraphObjectSpan(b.lines, b.cursor, around);
+    if (!para) return done(b, {});
+    return applyLineOperator(b, op, para.startRow, para.endRow);
+  } else return abortPending(b);
   if (!span) return done(b, {}); // recognized object, nothing to seize
   return applyCharOperator(b, op, span.start, span.end);
 }
