@@ -753,7 +753,7 @@ describe('pending state and the unhandled', () => {
 
   it('an unknown key in normal mode is unhandled and changes nothing', () => {
     const b = createVimBuffer(['ab']);
-    const r = vimKey(b, 'q');
+    const r = vimKey(b, 'Q');
     expect(r.handled).toBe(false);
     expect(r.buffer).toBe(b); // the very same scroll
   });
@@ -1021,5 +1021,67 @@ describe('visual-line mode (V, linewise select, d/y/c)', () => {
   it('motions clamp at the file edges without escaping the buffer', () => {
     const b = run(['a', 'b'], 'V9jd');
     expect(b.lines).toEqual(['']);
+  });
+});
+
+describe('macros — record (q) and replay (@, @@)', () => {
+  const scroll = ['foo one', 'bar two', 'baz three', 'qux four'];
+
+  it('q{a-z}…q records the keys between into that register', () => {
+    const b = run(scroll, 'qadwjq');
+    expect(b.macros.a).toEqual(['d', 'w', 'j']);
+    expect(b.recording).toBeNull(); // recording stopped
+    expect(b.lines).toEqual(['one', 'bar two', 'baz three', 'qux four']); // the take also ran live
+  });
+
+  it('@a replays the recorded take once', () => {
+    const b = run(scroll, 'qadwjq@a');
+    expect(b.lines).toEqual(['one', 'two', 'baz three', 'qux four']);
+  });
+
+  it('a count repeats the macro (3@a)', () => {
+    const b = run(scroll, 'qadwjq3@a');
+    expect(b.lines).toEqual(['one', 'two', 'three', 'four']);
+  });
+
+  it('@@ repeats the last-played macro', () => {
+    const b = run(scroll, 'qadwjq@a@@');
+    expect(b.lines).toEqual(['one', 'two', 'three', 'qux four']);
+  });
+
+  it('recording captures mode switches faithfully (insert macro)', () => {
+    const b = run(['alpha', 'beta', 'gamma'], 'qzA!<esc>jq');
+    expect(b.macros.z).toEqual(['A', '!', '<esc>', 'j']);
+    expect(b.lines).toEqual(['alpha!', 'beta', 'gamma']);
+  });
+
+  it('an insert macro replays down a column', () => {
+    const b = run(['alpha', 'beta', 'gamma'], 'qzA!<esc>jq@z@z');
+    expect(b.lines).toEqual(['alpha!', 'beta!', 'gamma!']);
+  });
+
+  it('replaying an empty / unset register is a harmless no-op', () => {
+    const b = run(scroll, '@a');
+    expect(b.lines).toEqual(scroll);
+    const empty = run(scroll, 'qaq@a'); // recorded nothing
+    expect(empty.macros.a).toEqual([]);
+    expect(empty.lines).toEqual(scroll);
+  });
+
+  it('@@ with no prior macro does nothing', () => {
+    const b = run(scroll, '@@');
+    expect(b.lines).toEqual(scroll);
+  });
+
+  it('q is literal text inside insert mode, not a recording toggle', () => {
+    const b = run(['x'], 'aq<esc>');
+    expect(b.lines).toEqual(['xq']);
+    expect(b.recording).toBeNull();
+  });
+
+  it('distinct registers hold distinct takes', () => {
+    const b = run(scroll, 'qaxqqbjq');
+    expect(b.macros.a).toEqual(['x']);
+    expect(b.macros.b).toEqual(['j']);
   });
 });

@@ -300,6 +300,12 @@ export interface VimBuffer {
   lastFind: { key: 'f' | 'F' | 't' | 'T'; char: string } | null;
   /** Anchor row of a visual-line selection; null outside 'visual-line' mode. */
   visualStart: VimCursor | null;
+  /** Named macro registers a–z, each a recorded key sequence for @ replay. */
+  macros: Record<string, string[]>;
+  /** Active recording: target register + keys captured so far; null when idle. */
+  recording: { register: string; keys: string[] } | null;
+  /** Register of the most recently played macro, for @@. */
+  lastMacro: string | null;
 }
 
 export interface VimKeyResult {

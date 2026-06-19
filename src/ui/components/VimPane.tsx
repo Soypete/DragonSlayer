@@ -71,9 +71,11 @@ function StanceLine({ buffer }: { buffer: VimBuffer }) {
   ]
     .filter((p) => p.length > 0)
     .join(' ');
+  const rec = buffer.recording ? `  ·  ● recording @${buffer.recording.register} (q to stop)` : '';
   return (
     <Text color={COLORS.parchment}>
       NORMAL{pending ? `  ·  half-spoken: ${pending} (awaiting a motion)` : ''}
+      {rec ? <Text color={COLORS.torch}>{rec}</Text> : ''}
     </Text>
   );
 }
