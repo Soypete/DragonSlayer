@@ -6,39 +6,37 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadRegistry, registerRepo, registryPath, withRepo } from './registry.js';
 
 describe('the Realm Registry', () => {
+  // Each test gets its own home, passed EXPLICITLY to the registry functions —
+  // no process.env.HOME swap, so suites sharing a process can never leak ledgers
+  // into one another (a hazard the mutation runner exposed).
   let home: string;
-  let priorHome: string | undefined;
 
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), 'gme-home-'));
-    priorHome = process.env.HOME;
-    process.env.HOME = home; // os.homedir() honors $HOME on POSIX
   });
 
   afterEach(() => {
-    if (priorHome === undefined) delete process.env.HOME;
-    else process.env.HOME = priorHome;
     rmSync(home, { recursive: true, force: true });
   });
 
   describe('loadRegistry', () => {
     it('yields an empty ledger when none has been drawn up', () => {
-      expect(loadRegistry()).toEqual({ version: 1, repos: [] });
+      expect(loadRegistry(home)).toEqual({ version: 1, repos: [] });
     });
 
     it('yields an empty ledger over a corrupt one', () => {
-      mkdirSync(dirname(registryPath()), { recursive: true });
-      writeFileSync(registryPath(), '{not json');
-      expect(loadRegistry()).toEqual({ version: 1, repos: [] });
+      mkdirSync(dirname(registryPath(home)), { recursive: true });
+      writeFileSync(registryPath(home), '{not json');
+      expect(loadRegistry(home)).toEqual({ version: 1, repos: [] });
     });
 
     it('drops non-string entries and dedupes resolved paths', () => {
-      mkdirSync(dirname(registryPath()), { recursive: true });
+      mkdirSync(dirname(registryPath(home)), { recursive: true });
       writeFileSync(
-        registryPath(),
+        registryPath(home),
         JSON.stringify({ version: 1, repos: ['/realm/keep', 42, '/realm/keep/'] })
       );
-      expect(loadRegistry().repos).toEqual(['/realm/keep']);
+      expect(loadRegistry(home).repos).toEqual(['/realm/keep']);
     });
   });
 
@@ -56,25 +54,25 @@ describe('the Realm Registry', () => {
 
   describe('registerRepo', () => {
     it('draws up the ledger on first charting', () => {
-      registerRepo('/realm/keep');
-      expect(loadRegistry().repos).toEqual(['/realm/keep']);
+      registerRepo('/realm/keep', home);
+      expect(loadRegistry(home).repos).toEqual(['/realm/keep']);
     });
 
     it('appends without duplicating', () => {
-      registerRepo('/realm/keep');
-      registerRepo('/realm/keep');
-      registerRepo('/realm/other-keep');
-      expect(loadRegistry().repos).toEqual(['/realm/keep', '/realm/other-keep']);
+      registerRepo('/realm/keep', home);
+      registerRepo('/realm/keep', home);
+      registerRepo('/realm/other-keep', home);
+      expect(loadRegistry(home).repos).toEqual(['/realm/keep', '/realm/other-keep']);
     });
 
     it('preserves unknown fields a steward wrote by hand', () => {
-      mkdirSync(dirname(registryPath()), { recursive: true });
+      mkdirSync(dirname(registryPath(home)), { recursive: true });
       writeFileSync(
-        registryPath(),
+        registryPath(home),
         JSON.stringify({ version: 1, repos: ['/realm/keep'], motto: 'no untested line' })
       );
-      registerRepo('/realm/other-keep');
-      const ledger = JSON.parse(readFileSync(registryPath(), 'utf8')) as Record<
+      registerRepo('/realm/other-keep', home);
+      const ledger = JSON.parse(readFileSync(registryPath(home), 'utf8')) as Record<
         string,
         unknown
       >;

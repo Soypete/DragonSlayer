@@ -96,8 +96,8 @@ export function CampaignScreen({
       return;
     }
 
-    if (key.upArrow) setCursor((c) => (c + rows.length - 1) % rows.length);
-    else if (key.downArrow) setCursor((c) => (c + 1) % rows.length);
+    if (key.upArrow || input === 'k') setCursor((c) => (c + rows.length - 1) % rows.length);
+    else if (key.downArrow || input === 'j') setCursor((c) => (c + 1) % rows.length);
     else if (key.return || input === ' ') {
       const row = rows[cursor]!;
       if (row.kind === 'chart') {

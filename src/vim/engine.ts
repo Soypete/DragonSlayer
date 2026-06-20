@@ -1006,6 +1006,9 @@ export function createVimBuffer(lines: string[], cursor?: VimCursor): VimBuffer 
     searchDraft: '',
     lastFind: null,
     visualStart: null,
+    macros: {},
+    recording: null,
+    lastMacro: null,
   };
 }
 
@@ -1083,7 +1086,8 @@ function visualLineKey(b: VimBuffer, key: string): VimKeyResult {
   return { buffer: b, handled: true }; // swallow stray keys; V holds until esc or a verb
 }
 
-export function vimKey(buffer: VimBuffer, key: string): VimKeyResult {
+/** Route one key to the mode-specific handler (no macro/recording logic). */
+function dispatchKey(buffer: VimBuffer, key: string): VimKeyResult {
   switch (buffer.mode) {
     case 'insert':
       return insertKey(buffer, key);
@@ -1094,6 +1098,75 @@ export function vimKey(buffer: VimBuffer, key: string): VimKeyResult {
     default:
       return normalKey(buffer, key);
   }
+}
+
+const MACRO_REGISTER = /^[a-z]$/;
+/** Guard rail: a macro replay can never feed more keys than this through the engine. */
+const MAX_MACRO_KEYS = 10000;
+
+/**
+ * Replay a recorded key sequence by feeding its keys, one at a time, through the
+ * same pure engine — so `@a` is exactly "type what was recorded". Counts replay
+ * the whole sequence `count` times. A budget guards against runaway recursion.
+ */
+function playMacro(b: VimBuffer, register: string, count: number): VimKeyResult {
+  const keys = b.macros[register];
+  if (!keys || keys.length === 0) return done(b, { lastMacro: register });
+  let buf: VimBuffer = { ...b, lastMacro: register };
+  let budget = MAX_MACRO_KEYS;
+  for (let n = 0; n < count; n++) {
+    for (const k of keys) {
+      if (budget-- <= 0) return { buffer: buf, handled: true }; // fail safe, never loop forever
+      buf = vimKey(buf, k).buffer;
+    }
+  }
+  return { buffer: buf, handled: true };
+}
+
+export function vimKey(buffer: VimBuffer, key: string): VimKeyResult {
+  // ── Macro control (normal mode only; q/@ are literal text while inserting) ──
+  if (buffer.mode === 'normal') {
+    const pending = buffer.pendingOperator;
+    const recording = buffer.recording;
+
+    // `q` toggles recording. While recording, a bare q stops and stores the take.
+    if (key === 'q' && pending === null) {
+      if (recording) {
+        const macros = { ...buffer.macros, [recording.register]: recording.keys };
+        return { buffer: { ...buffer, macros, recording: null }, handled: true };
+      }
+      // Await the register rune: stash a marker in pendingOperator.
+      return { buffer: { ...buffer, pendingOperator: 'q' }, handled: true };
+    }
+    if (pending === 'q') {
+      if (MACRO_REGISTER.test(key)) {
+        return { buffer: { ...buffer, pendingOperator: null, recording: { register: key, keys: [] } }, handled: true };
+      }
+      return { buffer: { ...buffer, pendingOperator: null }, handled: true }; // q then junk: abandon
+    }
+
+    // `@` replays a register; `@@` repeats the last. Honors a count (3@a).
+    if (key === '@' && pending === null) {
+      return { buffer: { ...buffer, pendingOperator: '@' }, handled: true };
+    }
+    if (pending === '@') {
+      const count = buffer.pendingCount ?? 1;
+      const reg = key === '@' ? buffer.lastMacro : MACRO_REGISTER.test(key) ? key : null;
+      const cleared: VimBuffer = { ...buffer, pendingOperator: null, pendingCount: null };
+      if (!reg) return { buffer: cleared, handled: true };
+      return playMacro(cleared, reg, count);
+    }
+  }
+
+  const result = dispatchKey(buffer, key);
+
+  // Capture the key into the active recording — but never the `q` that stops it
+  // (handled above) and never while replaying past the engine entry.
+  if (buffer.recording && result.buffer.recording) {
+    const keys = [...result.buffer.recording.keys, key];
+    return { buffer: { ...result.buffer, recording: { ...result.buffer.recording, keys } }, handled: result.handled };
+  }
+  return result;
 }
 
 /** Has the knight fulfilled the trial's demand? */

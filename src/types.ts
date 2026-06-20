@@ -300,6 +300,12 @@ export interface VimBuffer {
   lastFind: { key: 'f' | 'F' | 't' | 'T'; char: string } | null;
   /** Anchor row of a visual-line selection; null outside 'visual-line' mode. */
   visualStart: VimCursor | null;
+  /** Named macro registers a–z, each a recorded key sequence for @ replay. */
+  macros: Record<string, string[]>;
+  /** Active recording: target register + keys captured so far; null when idle. */
+  recording: { register: string; keys: string[] } | null;
+  /** Register of the most recently played macro, for @@. */
+  lastMacro: string | null;
 }
 
 export interface VimKeyResult {
@@ -314,7 +320,7 @@ export type TrialGoal =
 
 export interface VimTrial {
   id: string;
-  /** 1..7, gated progression. */
+  /** 1..8, gated progression. */
   tier: number;
   title: string;
   /** Lesson card shown before the first attempt. */
@@ -324,6 +330,13 @@ export interface VimTrial {
     body: string;
     /** Keystroke sequence demonstrated on the card, e.g. "ciw". */
     demoKeys: string;
+    /**
+     * Scene the demo plays on. When set, the demo shows the mechanic on a
+     * DIFFERENT example than the scored task, so the player transfers the idea
+     * rather than copying keys. Falls back to startLines/startCursor when absent.
+     */
+    demoLines?: string[];
+    demoCursor?: VimCursor;
   };
   /** Keys/concepts this trial introduces, e.g. ['c', 'iw']. */
   keysTaught: string[];

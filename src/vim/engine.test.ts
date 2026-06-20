@@ -753,7 +753,7 @@ describe('pending state and the unhandled', () => {
 
   it('an unknown key in normal mode is unhandled and changes nothing', () => {
     const b = createVimBuffer(['ab']);
-    const r = vimKey(b, 'q');
+    const r = vimKey(b, 'Q');
     expect(r.handled).toBe(false);
     expect(r.buffer).toBe(b); // the very same scroll
   });
@@ -919,6 +919,14 @@ describe('paragraph motions { } and objects ip / ap', () => {
     expect(b.register?.linewise).toBe(true);
   });
 
+  it('d{ deletes backward line-wise to (not including) the blank boundary', () => {
+    // From the last line, { reaches the blank above the final stanza; the
+    // operator excludes that blank and reaps the stanza (rows 5–6) upward.
+    const b = run(scroll, 'd{', { row: 6, col: 0 });
+    expect(b.lines).toEqual(['first line of one', 'second line of one', '', 'lone middle stanza', '']);
+    expect(b.register?.linewise).toBe(true);
+  });
+
   it('dip deletes the inner paragraph, leaving its blank neighbors', () => {
     const b = run(scroll, 'dip');
     expect(b.lines).toEqual(['', 'lone middle stanza', '', 'final paragraph here', 'and its second line']);
@@ -1003,8 +1011,11 @@ describe('visual-line mode (V, linewise select, d/y/c)', () => {
     expect(run(['a', 'b', 'c'], 'Vggd', { row: 2, col: 0 }).lines).toEqual(['']);
   });
 
-  it('x is a synonym for d on the selection', () => {
-    expect(run(['a', 'b', 'c'], 'Vjx').lines).toEqual(['c']);
+  it('x is a synonym for d on the selection — it deletes line-wise into the register', () => {
+    const b = run(['a', 'b', 'c'], 'Vjx');
+    expect(b.lines).toEqual(['c']);
+    expect(b.register).toEqual({ text: ['a', 'b'], linewise: true });
+    expect(b.mode).toBe('normal');
   });
 
   it('<esc> cancels visual-line and leaves the buffer untouched', () => {
@@ -1021,5 +1032,97 @@ describe('visual-line mode (V, linewise select, d/y/c)', () => {
   it('motions clamp at the file edges without escaping the buffer', () => {
     const b = run(['a', 'b'], 'V9jd');
     expect(b.lines).toEqual(['']);
+  });
+});
+
+describe('macros — record (q) and replay (@, @@)', () => {
+  const scroll = ['foo one', 'bar two', 'baz three', 'qux four'];
+
+  it('q{a-z}…q records the keys between into that register', () => {
+    const b = run(scroll, 'qadwjq');
+    expect(b.macros.a).toEqual(['d', 'w', 'j']);
+    expect(b.recording).toBeNull(); // recording stopped
+    expect(b.lines).toEqual(['one', 'bar two', 'baz three', 'qux four']); // the take also ran live
+  });
+
+  it('@a replays the recorded take once', () => {
+    const b = run(scroll, 'qadwjq@a');
+    expect(b.lines).toEqual(['one', 'two', 'baz three', 'qux four']);
+  });
+
+  it('a count repeats the macro (3@a)', () => {
+    const b = run(scroll, 'qadwjq3@a');
+    expect(b.lines).toEqual(['one', 'two', 'three', 'four']);
+  });
+
+  it('@@ repeats the last-played macro', () => {
+    const b = run(scroll, 'qadwjq@a@@');
+    expect(b.lines).toEqual(['one', 'two', 'three', 'qux four']);
+  });
+
+  it('recording captures mode switches faithfully (insert macro)', () => {
+    const b = run(['alpha', 'beta', 'gamma'], 'qzA!<esc>jq');
+    expect(b.macros.z).toEqual(['A', '!', '<esc>', 'j']);
+    expect(b.lines).toEqual(['alpha!', 'beta', 'gamma']);
+  });
+
+  it('an insert macro replays down a column', () => {
+    const b = run(['alpha', 'beta', 'gamma'], 'qzA!<esc>jq@z@z');
+    expect(b.lines).toEqual(['alpha!', 'beta!', 'gamma!']);
+  });
+
+  it('replaying an empty / unset register is a harmless no-op', () => {
+    const b = run(scroll, '@a');
+    expect(b.lines).toEqual(scroll);
+    const empty = run(scroll, 'qaq@a'); // recorded nothing
+    expect(empty.macros.a).toEqual([]);
+    expect(empty.lines).toEqual(scroll);
+  });
+
+  it('@@ with no prior macro does nothing', () => {
+    const b = run(scroll, '@@');
+    expect(b.lines).toEqual(scroll);
+  });
+
+  it('q is literal text inside insert mode, not a recording toggle', () => {
+    const b = run(['x'], 'aq<esc>');
+    expect(b.lines).toEqual(['xq']);
+    expect(b.recording).toBeNull();
+  });
+
+  it('distinct registers hold distinct takes', () => {
+    const b = run(scroll, 'qaxqqbjq');
+    expect(b.macros.a).toEqual(['x']);
+    expect(b.macros.b).toEqual(['j']);
+  });
+
+  it('q does not start recording while an operator is pending (dq is not a record)', () => {
+    // After d, q must serve the operator path, never toggle recording.
+    const b = run(['hail and well met'], 'dq');
+    expect(b.recording).toBeNull();
+    expect(b.macros.q).toBeUndefined();
+  });
+
+  it('replaying any register — even an empty one — arms @@ to repeat it', () => {
+    // @b on an empty register is a no-op edit but still sets lastMacro, so a
+    // following @@ repeats b (here that means: still nothing changes, but the
+    // repeat must target b, not throw or target nothing).
+    const armed = run(scroll, '@b');
+    expect(armed.lastMacro).toBe('b');
+    // A real macro in a, then @@ after @b would repeat b (the last played), not a.
+    const seq = run(['ax', 'bx', 'cx'], 'qa xq@b@@');
+    expect(seq.lastMacro).toBe('b'); // @b was the last @ played, @@ repeats it
+  });
+
+  it('@ followed by a non-register key is handled and changes nothing', () => {
+    const b = run(scroll, '@1');
+    expect(b.lines).toEqual(scroll);
+    // The @ awaits a register; a stray key after it is still consumed (handled),
+    // clearing the pending @ rather than falling through as unhandled.
+    const afterAt = vimKey(createVimBuffer(scroll), '@').buffer;
+    expect(afterAt.pendingOperator).toBe('@');
+    const stray = vimKey(afterAt, '1');
+    expect(stray.handled).toBe(true);
+    expect(stray.buffer.pendingOperator).toBeNull();
   });
 });

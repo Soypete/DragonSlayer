@@ -12,8 +12,13 @@ import { dirname, join, resolve } from 'node:path';
 import type { GlobalRegistry } from '../types.js';
 
 /** Where the ledger of realms is kept. */
-export function registryPath(): string {
-  return join(homedir(), '.gme', 'config.json');
+/**
+ * The home under which the `.gme` ledger lives. Defaults to the OS home; tests
+ * pass an explicit root so each runs in its own sandbox without touching the
+ * process-global $HOME (which would leak between suites sharing a process).
+ */
+export function registryPath(home?: string): string {
+  return join(home ?? homedir(), '.gme', 'config.json');
 }
 
 function emptyRegistry(): GlobalRegistry {
@@ -36,10 +41,10 @@ function parseLedger(raw: string): Record<string, unknown> | null {
  * Read the ledger. A missing, corrupt, or ill-shaped file yields an empty
  * registry — the game never refuses to start over a bad ledger.
  */
-export function loadRegistry(): GlobalRegistry {
+export function loadRegistry(home?: string): GlobalRegistry {
   let raw: string;
   try {
-    raw = readFileSync(registryPath(), 'utf8');
+    raw = readFileSync(registryPath(home), 'utf8');
   } catch {
     return emptyRegistry();
   }
@@ -63,9 +68,9 @@ export function withRepo(registry: GlobalRegistry, repoPath: string): GlobalRegi
  * Chart a realm into the ledger on disk. No-op when already present.
  * Unknown top-level fields in a legible ledger survive the rewrite.
  */
-export function registerRepo(repoPath: string): void {
+export function registerRepo(repoPath: string, home?: string): void {
   const abs = resolve(repoPath);
-  const path = registryPath();
+  const path = registryPath(home);
 
   let ledger: Record<string, unknown> = {};
   try {

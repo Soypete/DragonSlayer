@@ -48,23 +48,21 @@ describe('the Chronicle (state)', () => {
   });
 
   describe('save round-trip', () => {
+    // Each test gets its own vault, passed EXPLICITLY to the save functions —
+    // no process.env.HOME swap, so suites sharing a process can never leak
+    // chronicles into one another's vault (a hazard the mutation runner exposed).
     let vault: string;
-    let priorHome: string | undefined;
 
     beforeEach(() => {
       vault = mkdtempSync(join(tmpdir(), 'gme-vault-'));
-      priorHome = process.env.HOME;
-      process.env.HOME = vault; // os.homedir() honors $HOME on POSIX
     });
 
     afterEach(() => {
-      if (priorHome === undefined) delete process.env.HOME;
-      else process.env.HOME = priorHome;
       rmSync(vault, { recursive: true, force: true });
     });
 
     it('returns null when no chronicle exists', () => {
-      expect(loadSave('/realm/unwritten')).toBeNull();
+      expect(loadSave('/realm/unwritten', vault)).toBeNull();
     });
 
     it('round-trips a save through JSON safely', () => {
@@ -73,22 +71,22 @@ describe('the Chronicle (state)', () => {
       save.gold = 77;
       save.dragons = [makeDragon('src/lair.ts', { maxHp: 33, weakened: 0.5 })];
       save.lastScan = { coveragePct: 42.42, timestamp: 1_700_000_000_000 };
-      writeSave(save);
-      expect(loadSave('/realm/keep')).toEqual(save);
+      writeSave(save, vault);
+      expect(loadSave('/realm/keep', vault)).toEqual(save);
     });
 
     it('overwrites on subsequent writes', () => {
       const save = newSave('/realm/keep');
-      writeSave(save);
+      writeSave(save, vault);
       const richer = { ...save, gold: 9000 };
-      writeSave(richer);
-      expect(loadSave('/realm/keep')?.gold).toBe(9000);
+      writeSave(richer, vault);
+      expect(loadSave('/realm/keep', vault)?.gold).toBe(9000);
     });
 
     it('lists every legible chronicle in the vault', () => {
-      writeSave(newSave('/realm/keep'));
-      writeSave(newSave('/realm/other-keep'));
-      const saves = listSaves();
+      writeSave(newSave('/realm/keep'), vault);
+      writeSave(newSave('/realm/other-keep'), vault);
+      const saves = listSaves(vault);
       expect(saves.map((s) => s.repoPath).sort()).toEqual([
         '/realm/keep',
         '/realm/other-keep',
@@ -96,17 +94,17 @@ describe('the Chronicle (state)', () => {
     });
 
     it('passes over corrupt and foreign scrolls in silence', () => {
-      writeSave(newSave('/realm/keep'));
+      writeSave(newSave('/realm/keep'), vault);
       const dir = join(vault, '.gme', 'saves');
       writeFileSync(join(dir, 'corrupt.json'), '{not json');
       writeFileSync(join(dir, 'foreign.json'), JSON.stringify({ version: 99 }));
-      const saves = listSaves();
+      const saves = listSaves(vault);
       expect(saves).toHaveLength(1);
       expect(saves[0]!.repoPath).toBe('/realm/keep');
     });
 
     it('returns an empty roster when the vault has never been built', () => {
-      expect(listSaves()).toEqual([]);
+      expect(listSaves(vault)).toEqual([]);
     });
   });
 

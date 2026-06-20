@@ -150,7 +150,7 @@ describe('the Sword-School — lesson card', () => {
     expect(frame).toContain('l walks right, h walks left');
     expect(frame).toContain('letter keys ARE your feet');
     expect(frame).toContain('in 3 keystrokes');
-    expect(frame).toContain('(0/3 played)');
+    expect(frame).toContain('(0/2 played)');
     expect(frame).toContain('Goal: rest the cursor on line 1, column 4.');
     unmount();
   });
@@ -161,15 +161,13 @@ describe('the Sword-School — lesson card', () => {
     await settle();
     stdin.write(' ');
     await settle();
-    expect(lastFrame()).toContain('(1/3 played)');
+    expect(lastFrame()).toContain('(1/2 played)');
     stdin.write(' ');
     await settle();
-    stdin.write(' ');
-    await settle();
-    expect(lastFrame()).toContain('(3/3 played)');
+    expect(lastFrame()).toContain('(2/2 played)');
     stdin.write(' '); // wraps back to the start
     await settle();
-    expect(lastFrame()).toContain('(0/3 played)');
+    expect(lastFrame()).toContain('(0/2 played)');
     unmount();
   });
 });
@@ -243,13 +241,25 @@ describe('the Sword-School — practice and scored reps', () => {
     unmount();
   });
 
-  it('abandons a scored attempt with q, recording nothing', async () => {
+  it('abandons a scored attempt with esc, recording nothing', async () => {
     const { lastFrame, stdin, chronicles, unmount } = await bootSchool();
     await reachScored(stdin);
-    stdin.write('q');
+    stdin.write(ESC); // q now belongs to the blade (macro recording); esc abandons
     await settle();
     expect(lastFrame()).toContain('The Sword-School'); // back at the roster
     expect(chronicles).toHaveLength(0);
+    unmount();
+  });
+
+  it('q reaches the blade during a rep — it records, it does not abandon', async () => {
+    const { lastFrame, stdin, unmount } = await bootSchool();
+    await reachScored(stdin);
+    stdin.write('qal'); // start recording into a, take one step
+    await settle();
+    stdin.write('q'); // stop recording — this must NOT bounce us to the roster
+    await settle();
+    expect(lastFrame()).not.toContain('The Sword-School'); // still in the scored rep
+    expect(lastFrame()).toContain('SCORED ATTEMPT');
     unmount();
   });
 });

@@ -41,15 +41,14 @@ function masterTier(progress: VimProgress, tier: number, stars: 1 | 2 | 3): VimP
 // ── The curriculum scroll itself ─────────────────────────────────────────────
 
 describe('TRIALS curriculum structure', () => {
-  it('spans the foundational six tiers with 4–6 trials each', () => {
-    // Tiers 1–6 are the settled core; tier 7 (Advanced Arts) fills in across several PRs,
-    // so its count is only asserted once it lands its full lesson set.
-    for (let tier = 1; tier <= 6; tier++) {
+  it('gives every tier a worthwhile run of trials (at least 2 each)', () => {
+    // Tiers 1–5 are the settled core (4–6 each). Tier 6 grew when the multiline
+    // arts joined it; tiers 7–8 (Advanced and Macro Arts) are smaller capstones.
+    for (let tier = 1; tier <= 8; tier++) {
       const count = TRIALS.filter((t) => t.tier === tier).length;
-      expect(count, `tier ${tier} trial count`).toBeGreaterThanOrEqual(4);
-      expect(count, `tier ${tier} trial count`).toBeLessThanOrEqual(6);
+      expect(count, `tier ${tier} trial count`).toBeGreaterThanOrEqual(2);
     }
-    expect(TRIALS.every((t) => t.tier >= 1 && t.tier <= 7)).toBe(true);
+    expect(TRIALS.every((t) => t.tier >= 1 && t.tier <= 8)).toBe(true);
   });
 
   it('lists trials in tier order (the curriculum reads top to bottom)', () => {
@@ -72,6 +71,17 @@ describe('TRIALS curriculum structure', () => {
       for (const hint of t.hints) expect(hint.length, t.id).toBeGreaterThan(10);
       expect(t.keysTaught.length, t.id).toBeGreaterThan(0);
       expect(t.par, t.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('the demo teaches by a different example than the scored task', () => {
+    // A player who could copy the demo keystroke-for-keystroke onto the same
+    // scene would not be learning — so every demo either plays on its own scene
+    // (demoLines) or uses a sequence that differs from the scored parSolution.
+    for (const t of TRIALS) {
+      const ownScene = t.lesson.demoLines !== undefined;
+      const differentKeys = t.lesson.demoKeys !== t.parSolution;
+      expect(ownScene || differentKeys, `${t.id}: demo must differ from the scored task`).toBe(true);
     }
   });
 
@@ -130,10 +140,10 @@ describe('TRIALS teaching shape', () => {
     }
   });
 
-  it('tier 6 includes scrolls of six lines or more', () => {
-    const tier6 = TRIALS.filter((t) => t.tier === 6);
-    expect(Math.max(...tier6.map((t) => t.startLines.length))).toBeGreaterThanOrEqual(8);
-    for (const t of tier6) expect(t.startLines.length, t.id).toBeGreaterThanOrEqual(5);
+  it('tier 5 includes scrolls of six lines or more', () => {
+    const tier5 = TRIALS.filter((t) => t.tier === 5);
+    expect(Math.max(...tier5.map((t) => t.startLines.length))).toBeGreaterThanOrEqual(6);
+    for (const t of tier5) expect(t.startLines.length, t.id).toBeGreaterThanOrEqual(5);
   });
 
   it('the curriculum covers the canonical key groups in order', () => {
@@ -146,10 +156,10 @@ describe('TRIALS teaching shape', () => {
     expect(taughtAt('p')).toBe(3);
     expect(taughtAt('i')).toBe(4);
     expect(taughtAt('c')).toBe(4);
-    expect(taughtAt('f')).toBe(5);
-    expect(taughtAt('/')).toBe(5);
-    expect(taughtAt('iw')).toBe(6);
-    expect(taughtAt('i{')).toBe(6);
+    expect(taughtAt('iw')).toBe(5);
+    expect(taughtAt('i{')).toBe(5);
+    expect(taughtAt('f')).toBe(6);
+    expect(taughtAt('/')).toBe(6);
   });
 });
 
@@ -187,7 +197,7 @@ describe('trialXp', () => {
 
   it('is deterministic and positive across the whole grid', () => {
     for (const stars of [1, 2, 3] as const) {
-      for (let tier = 1; tier <= 7; tier++) {
+      for (let tier = 1; tier <= 8; tier++) {
         expect(trialXp(stars, tier)).toBeGreaterThan(0);
         expect(trialXp(stars, tier)).toBe(trialXp(stars, tier));
       }
@@ -291,12 +301,12 @@ describe('applyTrial', () => {
 
   it('mastering every tier in sequence opens the whole school', () => {
     let p = newVimProgress();
-    // Mastering tiers 1..6 in turn flings open the gate to the final tier, 7.
-    for (let tier = 1; tier <= 6; tier++) {
+    // Mastering tiers 1..7 in turn flings open the gate to the final tier, 8.
+    for (let tier = 1; tier <= 7; tier++) {
       expect(p.unlockedTier).toBe(tier);
       p = masterTier(p, tier, 3);
     }
-    expect(p.unlockedTier).toBe(7); // tier 7 — the Advanced Arts — is the last gate
+    expect(p.unlockedTier).toBe(8); // tier 8 — the Macro Arts — is the last gate
   });
 
   it('mastering a locked tier early does not skip gates', () => {
@@ -352,14 +362,14 @@ describe('nextTrial', () => {
       p,
       makeResult({ trialId: straggler.id, par: straggler.par, keystrokes: straggler.par, hintsUsed: 1, stars: 2, blade: 1.2 }),
     );
-    for (let tier = 2; tier <= 7; tier++) p = masterTier(p, tier, 3);
+    for (let tier = 2; tier <= 8; tier++) p = masterTier(p, tier, 3);
     expect(nextTrial(p)?.id).toBe(straggler.id);
   });
 
   it('returns null only when every trial in the school is 3-starred', () => {
     let p = newVimProgress();
-    for (let tier = 1; tier <= 7; tier++) p = masterTier(p, tier, 3);
-    expect(p.unlockedTier).toBe(7);
+    for (let tier = 1; tier <= 8; tier++) p = masterTier(p, tier, 3);
+    expect(p.unlockedTier).toBe(8);
     expect(Object.keys(p.results)).toHaveLength(TRIALS.length);
     expect(nextTrial(p)).toBeNull();
   });

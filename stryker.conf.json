@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "reporters": ["html", "clear-text", "progress"],
+  "coverageAnalysis": "all",
+  "concurrency": 8,
+  "timeoutMS": 20000,
+  "mutate": [
+    "src/vim/**/*.ts",
+    "src/game/**/*.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx"
+  ],
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true
+}
