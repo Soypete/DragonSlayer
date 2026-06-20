@@ -18,12 +18,17 @@ export function VimPane({ buffer }: { buffer: VimBuffer }) {
           hi: Math.max(buffer.visualStart.row, buffer.cursor.row),
         }
       : null;
+  // Line numbers are shown 1-indexed to match the goal card ("line 4, column 3").
+  const gutterWidth = String(buffer.lines.length).length;
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={COLORS.steel} paddingX={1}>
       {buffer.lines.map((line, row) => (
         <ScrollLine
           key={row}
           line={line}
+          lineNo={row + 1}
+          gutterWidth={gutterWidth}
+          isCursorRow={row === buffer.cursor.row}
           cursorCol={row === buffer.cursor.row ? buffer.cursor.col : null}
           selected={sel !== null && row >= sel.lo && row <= sel.hi}
         />
@@ -33,22 +38,37 @@ export function VimPane({ buffer }: { buffer: VimBuffer }) {
   );
 }
 
-/** One line of the scroll; the cursor cell burns inverted, marked lines glow. */
+/** One line of the scroll: a line-number gutter, then the text; the cursor cell burns. */
 function ScrollLine({
   line,
+  lineNo,
+  gutterWidth,
+  isCursorRow,
   cursorCol,
   selected,
 }: {
   line: string;
+  lineNo: number;
+  gutterWidth: number;
+  isCursorRow: boolean;
   cursorCol: number | null;
   selected: boolean;
 }) {
   // A marked (visual-line) line glows whole; the cursor cell still burns within it.
   const lineColor = selected ? COLORS.banner : COLORS.steel;
+  const gutter = (
+    <Text color={isCursorRow ? COLORS.banner : COLORS.parchment}>
+      {String(lineNo).padStart(gutterWidth, ' ')}
+      {'  '}
+    </Text>
+  );
   if (cursorCol === null) {
     return (
-      <Text color={lineColor} inverse={selected}>
-        {line.length > 0 ? line : ' '}
+      <Text>
+        {gutter}
+        <Text color={lineColor} inverse={selected}>
+          {line.length > 0 ? line : ' '}
+        </Text>
       </Text>
     );
   }
@@ -56,12 +76,15 @@ function ScrollLine({
   const under = line[cursorCol] ?? ' ';
   const after = line.slice(cursorCol + 1);
   return (
-    <Text color={lineColor} inverse={selected}>
-      {before}
-      <Text inverse={!selected} color={COLORS.banner}>
-        {under}
+    <Text>
+      {gutter}
+      <Text color={lineColor} inverse={selected}>
+        {before}
+        <Text inverse={!selected} color={COLORS.banner}>
+          {under}
+        </Text>
+        {after}
       </Text>
-      {after}
     </Text>
   );
 }
@@ -95,9 +118,12 @@ function StanceLine({ buffer }: { buffer: VimBuffer }) {
     .filter((p) => p.length > 0)
     .join(' ');
   const rec = buffer.recording ? `  ·  ● recording @${buffer.recording.register} (q to stop)` : '';
+  // 1-indexed position, matching the goal card's "line 4, column 3" wording.
+  const here = `  ·  line ${buffer.cursor.row + 1} · col ${buffer.cursor.col + 1}`;
   return (
     <Text color={COLORS.parchment}>
       NORMAL{pending ? `  ·  half-spoken: ${pending} (awaiting a motion)` : ''}
+      <Text color={COLORS.steel}>{here}</Text>
       {rec ? <Text color={COLORS.torch}>{rec}</Text> : ''}
     </Text>
   );
