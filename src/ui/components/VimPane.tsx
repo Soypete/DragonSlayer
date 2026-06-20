@@ -10,6 +10,14 @@ import type { VimBuffer } from '../../types.js';
 import { COLORS } from '../theme.js';
 
 export function VimPane({ buffer }: { buffer: VimBuffer }) {
+  // In visual-line mode the marked lines glow between the anchor and the cursor.
+  const sel =
+    buffer.mode === 'visual-line' && buffer.visualStart
+      ? {
+          lo: Math.min(buffer.visualStart.row, buffer.cursor.row),
+          hi: Math.max(buffer.visualStart.row, buffer.cursor.row),
+        }
+      : null;
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={COLORS.steel} paddingX={1}>
       {buffer.lines.map((line, row) => (
@@ -17,6 +25,7 @@ export function VimPane({ buffer }: { buffer: VimBuffer }) {
           key={row}
           line={line}
           cursorCol={row === buffer.cursor.row ? buffer.cursor.col : null}
+          selected={sel !== null && row >= sel.lo && row <= sel.hi}
         />
       ))}
       <StanceLine buffer={buffer} />
@@ -24,18 +33,32 @@ export function VimPane({ buffer }: { buffer: VimBuffer }) {
   );
 }
 
-/** One line of the scroll; the cursor cell burns inverted. */
-function ScrollLine({ line, cursorCol }: { line: string; cursorCol: number | null }) {
+/** One line of the scroll; the cursor cell burns inverted, marked lines glow. */
+function ScrollLine({
+  line,
+  cursorCol,
+  selected,
+}: {
+  line: string;
+  cursorCol: number | null;
+  selected: boolean;
+}) {
+  // A marked (visual-line) line glows whole; the cursor cell still burns within it.
+  const lineColor = selected ? COLORS.banner : COLORS.steel;
   if (cursorCol === null) {
-    return <Text color={COLORS.steel}>{line.length > 0 ? line : ' '}</Text>;
+    return (
+      <Text color={lineColor} inverse={selected}>
+        {line.length > 0 ? line : ' '}
+      </Text>
+    );
   }
   const before = line.slice(0, cursorCol);
   const under = line[cursorCol] ?? ' ';
   const after = line.slice(cursorCol + 1);
   return (
-    <Text color={COLORS.steel}>
+    <Text color={lineColor} inverse={selected}>
       {before}
-      <Text inverse color={COLORS.banner}>
+      <Text inverse={!selected} color={COLORS.banner}>
         {under}
       </Text>
       {after}
