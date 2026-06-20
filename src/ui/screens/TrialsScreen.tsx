@@ -39,8 +39,9 @@ const TIER_NAMES: Record<number, string> = {
   3: 'The Cutting Arts · d y p',
   4: "The Scribe's Arts · i a o, c, esc",
   5: "The Hunter's Arts · f t ; , / n",
-  6: 'Strike the Heart · text objects iw i" i( i{',
-  7: 'Advanced Arts · { } ip ap · V · q @',
+  6: 'Strike the Heart · text objects iw i" i( i{ · 3dd · V',
+  7: 'Advanced Arts · word-change clarity · { } ip ap',
+  8: 'The Macro Arts · q @ @@',
 };
 
 type Phase = 'list' | 'lesson' | 'practice' | 'scored' | 'debrief';
@@ -199,7 +200,9 @@ export function TrialsScreen({ save, onChronicle, onBack }: TrialsScreenProps) {
       climbHintLadder();
       return;
     }
-    if (atRest && input === 'q') {
+    if (atRest && key.escape) {
+      // Esc abandons the rep when nothing is pending. (q is left for the blade —
+      // the macro arts record with q, so it must reach the engine.)
       setPhase('list');
       return;
     }
@@ -276,7 +279,7 @@ function RosterView({
     <Box flexDirection="column" paddingX={1}>
       <Text color={COLORS.gold}>⚔ The Sword-School — vim trials of the realm</Text>
       <Text color={COLORS.steel}>
-        Tier <Text color={COLORS.banner}>{unlockedTier}</Text> of 7 unlocked · {totalStars}/
+        Tier <Text color={COLORS.banner}>{unlockedTier}</Text> of 8 unlocked · {totalStars}/
         {TRIALS.length * 3} stars · <Text color={COLORS.gold}>⛁ {save.gold} gold</Text>
         {progress.bladeBuff > 1 ? (
           <Text color={COLORS.torch}>
@@ -503,7 +506,7 @@ function RepView({
         hints={[
           { key: '?', does: `hint (rungs 2–3 cost ${HINT_COST} gold)` },
           ...(scored ? [] : [{ key: 'r', does: 'restart the rep' }]),
-          { key: 'q', does: scored ? 'abandon the attempt' : 'trial roster' },
+          { key: 'esc', does: scored ? 'abandon the attempt' : 'trial roster' },
         ]}
       />
     </Box>
