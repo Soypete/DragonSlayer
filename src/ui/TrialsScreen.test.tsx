@@ -243,13 +243,25 @@ describe('the Sword-School — practice and scored reps', () => {
     unmount();
   });
 
-  it('abandons a scored attempt with q, recording nothing', async () => {
+  it('abandons a scored attempt with esc, recording nothing', async () => {
     const { lastFrame, stdin, chronicles, unmount } = await bootSchool();
     await reachScored(stdin);
-    stdin.write('q');
+    stdin.write(ESC); // q now belongs to the blade (macro recording); esc abandons
     await settle();
     expect(lastFrame()).toContain('The Sword-School'); // back at the roster
     expect(chronicles).toHaveLength(0);
+    unmount();
+  });
+
+  it('q reaches the blade during a rep — it records, it does not abandon', async () => {
+    const { lastFrame, stdin, unmount } = await bootSchool();
+    await reachScored(stdin);
+    stdin.write('qal'); // start recording into a, take one step
+    await settle();
+    stdin.write('q'); // stop recording — this must NOT bounce us to the roster
+    await settle();
+    expect(lastFrame()).not.toContain('The Sword-School'); // still in the scored rep
+    expect(lastFrame()).toContain('SCORED ATTEMPT');
     unmount();
   });
 });

@@ -320,7 +320,7 @@ export type TrialGoal =
 
 export interface VimTrial {
   id: string;
-  /** 1..7, gated progression. */
+  /** 1..8, gated progression. */
   tier: number;
   title: string;
   /** Lesson card shown before the first attempt. */

@@ -968,6 +968,68 @@ export const TRIALS: VimTrial[] = [
     ],
   },
   {
+    id: 't6-thrice-cut',
+    tier: 6,
+    title: 'Thrice-Cut',
+    lesson: {
+      heading: 'A count before dd reaps many lines — 3dd is to dd what 4w was to w',
+      body:
+        'The count you learned in Tier 2 — 4w bounds four words at once — works on line-strikes too. dd ' +
+        'reaps one line; 3dd reaps three, 2cc changes two, 3yy yanks three. Count first, then the ' +
+        'doubled verb. An overlong count simply clamps to the end of the scroll. ' +
+        'Your task: three forged orders sit atop the true command — reap all three at once.',
+      demoKeys: '3dd',
+    },
+    keysTaught: ['dd', 'cc', 'yy'],
+    startLines: [
+      'the forged orders read:',
+      'burn the eastern bridge',
+      'poison the well',
+      'spare no farmstead',
+      'hold the line and wait',
+    ],
+    startCursor: { row: 1, col: 0 },
+    goal: { kind: 'text', lines: ['the forged orders read:', 'hold the line and wait'] },
+    par: 3,
+    parSolution: '3dd',
+    hints: [
+      'Put a count in front of the line-reaping verb, the way you once put one in front of w.',
+      'Type 3dd — three keys.',
+      'From the first forged order: 3, then dd. As 4w leapt four words, 3dd reaps three lines in one breath — the three lies vanish and "hold the line and wait" stands alone. Three keys.',
+    ],
+  },
+  {
+    id: 't6-mark-then-strike',
+    tier: 6,
+    title: 'Mark, Then Strike',
+    lesson: {
+      heading: 'V marks whole lines first, then d strikes them — select, then act',
+      body:
+        'Every art so far has been verb-then-target: d, then a motion. Visual-line flips it. Press V to ' +
+        'start marking lines, grow the mark with j or k, and only then strike with d (or y, or c). You ' +
+        'select first and act second, watching the block grow before the blade falls. ' +
+        'Your task: mark the three lines of the broken oath and strike them as one.',
+      demoKeys: 'Vjjd',
+    },
+    keysTaught: ['V', 'j', 'd'],
+    startLines: [
+      'the broken oath, thrice sworn:',
+      'I swore to guard the keep',
+      'I swore to keep no secrets',
+      'I swore to never flee',
+      'and every word was a lie',
+    ],
+    startCursor: { row: 1, col: 0 },
+    goal: { kind: 'text', lines: ['the broken oath, thrice sworn:', 'and every word was a lie'] },
+    par: 4,
+    parSolution: 'Vjjd',
+    hints: [
+      'Enter the select-first stance, grow the mark down two lines, then strike.',
+      'Type V, then j, then j, then d.',
+      'V marks the first oath and the stance reads VISUAL LINE. j, then j, extend the mark down over all three oaths. Now d falls on the whole block, and only the final line remains. Four keys — select, then strike.',
+    ],
+  },
+  {
     id: 't6-grand-trial',
     tier: 6,
     title: 'The Grand Trial of the Blade',
@@ -1021,15 +1083,13 @@ export const TRIALS: VimTrial[] = [
     tier: 7,
     title: 'Choose Your Cut',
     lesson: {
-      heading: 'Four word-strikes, one decision: cw · ciw · diw · daw — pick by intent',
+      heading: 'cw, ciw, diw, daw — four word-strikes, each for a different intent',
       body:
-        'You already wield every word-strike; mastery is knowing WHICH to draw. Read your intent: ' +
-        'standing at a word\'s START and replacing the rest → cw. Anywhere INSIDE a word, replacing it ' +
-        'whole → ciw (no travel to the start). REMOVING a word for good → daw, which swallows the ' +
-        'trailing space so the line closes ranks (diw would leave a double space behind). REPLACING a ' +
-        'word in place → ciw, or diw then type into the gap. ' +
-        'Your task: the herald stands mid-word in "craven" — the wrong cry. Replace the whole word with ' +
-        '"valiant" without first walking to its start. Which cut? You are inside it, and replacing it: ciw.',
+        'You already wield every word-strike; the art now is choosing. cw changes from a word\'s start; ' +
+        'ciw changes the whole word from anywhere inside it; daw deletes a word and its trailing space, ' +
+        'closing the gap; diw deletes the word but leaves the space. Replacing a word you stand inside ' +
+        'is ciw — no walk to the start, no stray gap. ' +
+        'Your task: you stand mid-word in "craven". Change the whole word to "valiant" without moving.',
       demoKeys: 'ciwvaliant<esc>',
     },
     keysTaught: ['cw', 'ciw', 'diw', 'daw'],
@@ -1050,9 +1110,9 @@ export const TRIALS: VimTrial[] = [
     par: 11,
     parSolution: 'ciwvaliant<esc>',
     hints: [
-      'You are standing inside the word, and you are replacing it — that points to one cut, not a deletion and not a start-of-word change.',
+      'You stand inside the word and you mean to replace it — reach for the change verb with the "inner word" object, not a deletion and not a start-of-word change.',
       'Type ciw, then valiant, then Escape.',
-      'You stand on the a in "craven", mid-word. Because you are INSIDE the word and REPLACING it, the cut is ciw — not cw (that needs the start) and not daw (that removes, not replaces). c, i, w empties the whole word with the quill drawn; type valiant, press Escape. "the valiant prince returns". Eleven keys, no travel.',
+      'You stand on the a in "craven", mid-word. c, i, w empties the whole word and draws the quill — cw would need the word\'s start, daw would remove it rather than replace it. Type valiant, press Escape: "the valiant prince returns". Eleven keys, no travel.',
     ],
   },
   {
@@ -1060,13 +1120,12 @@ export const TRIALS: VimTrial[] = [
     tier: 7,
     title: 'Leap the Stanzas',
     lesson: {
-      heading: '{ and } are w and b for paragraphs — they vault between blank lines',
+      heading: '} leaps to the next blank line, { to the one above — w and b for paragraphs',
       body:
-        'Just as w and b stride word to word, } and { vault paragraph to paragraph: } leaps DOWN to ' +
-        'the next blank line, { leaps UP to the previous one. A blank line is the boundary. On a long ' +
-        'scroll this clears whole verses in a keystroke instead of a hail of j\'s. ' +
-        'Your task: from the top of the ballad, vault down two paragraphs to the blank line before the ' +
-        'final verse.',
+        'Just as w and b stride word to word, } and { vault paragraph to paragraph: } leaps down to the ' +
+        'next blank line, { leaps up to the previous one. A blank line is the boundary between verses. ' +
+        'On a long scroll this clears whole stanzas in a keystroke instead of a hail of j\'s. ' +
+        'Your task: from the top of the ballad, vault down two stanzas to the blank line before the last verse.',
       demoKeys: '}}',
     },
     keysTaught: ['}', '{'],
@@ -1087,7 +1146,7 @@ export const TRIALS: VimTrial[] = [
     hints: [
       'There is a paragraph-stride that vaults to the next blank line — use it twice.',
       'Press } then } again.',
-      'From the first line, } lands you on the blank line after "throat" (the boundary of verse one). } again lands on the blank line after "mud". Two keystrokes clear two verses.',
+      'From the first line, } lands on the blank line after "throat", the end of verse one. } again lands on the blank line after "mud". Two stanzas cleared. Two keys.',
     ],
   },
   {
@@ -1095,16 +1154,16 @@ export const TRIALS: VimTrial[] = [
     tier: 7,
     title: 'Raze the Verse',
     lesson: {
-      heading: 'dap removes a whole paragraph and its trailing blank — "around paragraph"',
+      heading: 'dap deletes a paragraph and its trailing blank — "around paragraph"',
       body:
-        'ip is the paragraph alone; ap is the paragraph AROUND — the verse plus the blank line beside ' +
-        'it. So dap deletes the whole stanza and closes the gap it left, the way daw did for a single ' +
-        'word. (dip would leave the blank line stranded.) ip and ap join the text-object family you ' +
-        'already know: c, d, y all take them. ' +
+        'Where ip is the paragraph alone, ap is the paragraph around — the verse plus the blank line ' +
+        'beside it. So dap deletes the whole stanza and closes the gap, the way daw did for a single ' +
+        'word; dip would leave the blank line stranded. ip and ap join the text-object family: c, d, ' +
+        'and y all take them. ' +
         'Your task: the forged middle verse must go — raze it cleanly, blank line and all.',
       demoKeys: 'dap',
     },
-    keysTaught: ['ap', 'dap'],
+    keysTaught: ['ip', 'ap', 'dap'],
     startLines: [
       'true is the first verse',
       'sung in every hall',
@@ -1131,86 +1190,26 @@ export const TRIALS: VimTrial[] = [
     hints: [
       'Delete "around" the paragraph, not just inside it — that takes the blank line with it.',
       'Type dap — three keys.',
-      'You stand in the forged verse. d, a, w would take a word; d, a, p takes the PARAGRAPH and its trailing blank. The two true verses close ranks with one blank between them. (dip would have left a stray blank line.) Three keys.',
+      'You stand in the forged verse. daw would take a word; dap takes the paragraph and its trailing blank. The two true verses close ranks with one blank between them — dip would have left a stray blank line. Three keys.',
     ],
   },
+
+  // ── Tier 8 · The Macro Arts ──────────────────────────────────────────────
   {
-    id: 't7-thrice-cut',
-    tier: 7,
-    title: 'Thrice-Cut',
-    lesson: {
-      heading: 'A count before dd reaps many lines — 3dd is to dd what 4w was to w',
-      body:
-        'The count you learned in Tier 2 (4w bounds four words at once) works on line-strikes too. dd ' +
-        'reaps one line; 3dd reaps three, 2cc changes two, 3yy yanks three — count first, then the ' +
-        'doubled verb. The count clamps to the scroll, so an overlong number simply stops at the end. ' +
-        'Your task: three lines of forged orders sit atop the true command — reap all three at once.',
-      demoKeys: '3dd',
-    },
-    keysTaught: ['3dd', 'count + dd'],
-    startLines: [
-      'burn the eastern bridge',
-      'poison the well',
-      'spare no farmstead',
-      'HOLD THE LINE AND WAIT',
-    ],
-    startCursor: { row: 0, col: 0 },
-    goal: { kind: 'text', lines: ['HOLD THE LINE AND WAIT'] },
-    par: 3,
-    parSolution: '3dd',
-    hints: [
-      'Put a count in front of the line-reaping verb, the way you once put one in front of w.',
-      'Type 3dd — three keys.',
-      'From the first forged order: 3, then dd. Just as 4w leapt four words, 3dd reaps three lines in one breath — the three lies vanish and "HOLD THE LINE AND WAIT" stands alone. Three keys.',
-    ],
-  },
-  {
-    id: 't7-mark-then-strike',
-    tier: 7,
-    title: 'Mark, Then Strike',
-    lesson: {
-      heading: 'Visual line inverts the grammar: V marks first, THEN d strikes',
-      body:
-        'Every art so far has been verb-then-target: d, then a motion. Visual-line flips it — press V to ' +
-        'start marking lines, grow the mark with j (or k), and ONLY THEN strike with d (or y, or c). ' +
-        'Select first, act second. It shines when you can SEE the block growing and want to be sure ' +
-        'before the blade falls. ' +
-        'Your task: mark the three lines of the broken oath and strike them as one.',
-      demoKeys: 'Vjjd',
-    },
-    keysTaught: ['V', 'Vjjd'],
-    startLines: [
-      'I swore to guard the keep',
-      'I swore to keep no secrets',
-      'I swore to never flee',
-      'and every word was a lie',
-    ],
-    startCursor: { row: 0, col: 0 },
-    goal: { kind: 'text', lines: ['and every word was a lie'] },
-    par: 4,
-    parSolution: 'Vjjd',
-    hints: [
-      'Enter the select-first stance, grow the mark down two lines, and only then strike.',
-      'Type V, then j, then j, then d.',
-      'Press V — the first oath is marked and the stance reads VISUAL LINE. j, then j, extend the mark down over all three oaths (watch the count grow). Now d falls on the whole block. Only the final line remains. Four keys — select, then strike.',
-    ],
-  },
-  {
-    id: 't7-record-the-art',
-    tier: 7,
+    id: 't8-record-the-art',
+    tier: 8,
     title: 'Record the Art',
     lesson: {
       heading: 'q records the keys you press; @ unleashes them again',
       body:
         'A macro is the arts you already know, captured and replayed. qa begins recording into register ' +
         'a; every key you press is remembered until you press q again to stop. Then @a performs the ' +
-        'whole recorded sequence in one stroke. Record an edit that ends by stepping to the next line, ' +
-        'and a single @a repeats it there. ' +
-        'Your task: each banner needs a "!" added. Record the edit on the first banner (append !, then ' +
-        'drop a line), then unleash it once on the second.',
+        'whole take in one stroke. Record an edit that ends by stepping to the next line, and a single ' +
+        '@a repeats it there. ' +
+        'Your task: record the edit that adds "!" to the first banner and drops a line, then unleash it once on the second.',
       demoKeys: 'qaA!<esc>jq@a',
     },
-    keysTaught: ['q', '@', 'qa…q'],
+    keysTaught: ['q', '@'],
     startLines: ['hail the king', 'hail the queen', 'hail the realm'],
     startCursor: { row: 0, col: 0 },
     goal: {
@@ -1221,26 +1220,25 @@ export const TRIALS: VimTrial[] = [
     parSolution: 'qaA!<esc>jq@a',
     hints: [
       'Record the edit-and-step into a register, stop the recording, then replay it once.',
-      'Type qa, then A!<esc>, then j, then q to stop — then @a.',
-      'qa starts recording into a. A jumps to end-of-line, type !, Escape, then j drops a line — q stops the take (register a now holds A,!,esc,j). The first banner already reads "hail the king!". Now @a replays the whole art on the second banner: "hail the queen!". Nine keys; the third banner is left for you.',
+      'Type qa, then A!<esc>, then j, then q to stop, then @a.',
+      'qa starts recording into a. A jumps to the line\'s end, type !, Escape, then j drops a line — q stops the take. The first banner now reads "hail the king!", and @a replays the whole art on the second: "hail the queen!". The third is left for you. Nine keys.',
     ],
   },
   {
-    id: 't7-unleash-the-column',
-    tier: 7,
+    id: 't8-unleash-the-column',
+    tier: 8,
     title: 'Unleash Down the Column',
     lesson: {
-      heading: 'A count before @ runs the macro down a whole column — 3@a',
+      heading: 'A count before @ runs the macro again and again — 3@a',
       body:
         'Once an art is recorded, a count unleashes it many times: 3@a runs register a three times, ' +
-        'each replay picking up where the last left off. This is the macro\'s whole purpose — record ' +
-        'one repetitive edit, then sweep it down a column of lines that all need the same change. ' +
-        '(@@ repeats the last macro once more, if you prefer to feel each strike.) ' +
-        'Your task: every rank in the roll needs a full stop. Record the edit on rank 1, then unleash ' +
-        'it three times to finish ranks 2 through 4.',
+        'each replay picking up where the last left off. This is the macro\'s whole purpose — record one ' +
+        'repetitive edit, then sweep it down a column of lines that all need the same change. (@@ ' +
+        'repeats the last macro once more, if you would rather feel each strike.) ' +
+        'Your task: record the full-stop edit on rank 1, then unleash it three times to finish ranks 2 through 4.',
       demoKeys: 'qaA.<esc>jq3@a',
     },
-    keysTaught: ['3@a', '@@'],
+    keysTaught: ['@', '@@'],
     startLines: ['rank 1', 'rank 2', 'rank 3', 'rank 4', 'done'],
     startCursor: { row: 0, col: 0 },
     goal: {
@@ -1311,7 +1309,7 @@ function masteredCount(results: Record<string, TrialResult>, tier: number): numb
   return TRIALS.filter((t) => t.tier === tier && (results[t.id]?.stars ?? 0) >= 2).length;
 }
 
-const MAX_TIER = 7;
+const MAX_TIER = 8;
 /** ≥ this many 2-star-or-better trials in a tier flings open the next gate. */
 const UNLOCK_THRESHOLD = 3;
 
