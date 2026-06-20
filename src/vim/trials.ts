@@ -30,9 +30,12 @@ export const TRIALS: VimTrial[] = [
       body:
         'In normal mode the letter keys ARE your feet. Press l (lowercase L) and the cursor steps one ' +
         'character to the RIGHT. Press h and it steps LEFT. No arrow keys needed — your fingers never ' +
-        'leave the home row. Example: on the word "go", pressing l once moves you from the g onto the o. ' +
+        'leave the home row. The demo below steps twice on its own line; read it, then march your own ' +
+        'cursor the distance YOUR task needs. ' +
         'Your task: march the cursor three steps east, onto the e of "east".',
-      demoKeys: 'lll',
+      demoKeys: 'll',
+      demoLines: ['be brave'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['l', 'h'],
     startLines: ['go east, brave squire'],
@@ -57,7 +60,9 @@ export const TRIALS: VimTrial[] = [
         'below the line like a hook pointing down. Together with h and l you can reach anywhere: ' +
         'h ← left, j ↓ down, k ↑ up, l → right. ' +
         'Your task: descend from the tower top to the dungeon floor, two lines below.',
-      demoKeys: 'jj',
+      demoKeys: 'j',
+      demoLines: ['the crow circles', 'the crow lands'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['j'],
     startLines: ['the tower top', 'the winding stair', 'the dungeon floor'],
@@ -83,7 +88,9 @@ export const TRIALS: VimTrial[] = [
         '(or in any order — each press is one independent step). ' +
         'Your task: you stand mid-word on the bottom line. Climb two lines up, then fall back three steps ' +
         'west, to rest on the e of "the".',
-      demoKeys: 'kkhhh',
+      demoKeys: 'khh',
+      demoLines: ['the high keep', 'the deep moat'],
+      demoCursor: { row: 1, col: 4 },
     },
     keysTaught: ['k', 'h'],
     startLines: ['the ramparts', 'the courtyard', 'the front gate'],
@@ -109,6 +116,8 @@ export const TRIALS: VimTrial[] = [
         'The scribe wrote "draagon" — one a too many. Walk onto the extra a with l, then strike it with x. ' +
         'Walk first, THEN strike: x only hits what you stand on.',
       demoKeys: 'llx',
+      demoLines: ['swoord'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['x'],
     startLines: ['draagon'],
@@ -134,6 +143,8 @@ export const TRIALS: VimTrial[] = [
         'line with j, step onto the second typo, x it. Notice the cursor STAYS where it is after x — ' +
         'so after the first strike you are already in column 1, partway to the second typo.',
       demoKeys: 'lxjlx',
+      demoLines: ['aanvil', 'tthrone'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['h', 'j', 'k', 'l', 'x'],
     startLines: ['hooard of gold', 'a ddragon dozes'],
@@ -160,7 +171,9 @@ export const TRIALS: VimTrial[] = [
         'character of the next word. On "forge a blade", one w takes you from f straight to a; another ' +
         'w lands on the b of "blade". Punctuation counts as its own little word, so w sometimes stops ' +
         'on a comma — that is normal. Your task: reach the b of "blade" in two leaps.',
-      demoKeys: 'ww',
+      demoKeys: 'w',
+      demoLines: ['raise the shield'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['w'],
     startLines: ['forge a blade for the king'],
@@ -186,7 +199,9 @@ export const TRIALS: VimTrial[] = [
         'motion you know: 3j drops three lines, 5l walks five steps right. Count the words between you ' +
         'and your target, then say the count out loud as you type it. ' +
         'Your task: from "the", reach the g of "gold" — count the leaps first!',
-      demoKeys: '4w',
+      demoKeys: '3w',
+      demoLines: ['the knight rides through the mist'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['4w', 'counts'],
     startLines: ['the dragon guards the gold hoard'],
@@ -211,7 +226,9 @@ export const TRIALS: VimTrial[] = [
         'of "sharpen", e puts you on the final n. Press e again and you ride to the end of the NEXT ' +
         'word. Counts work too: 3e means "end of the third word from here". ' +
         'Your task: land exactly on the final e of "blade", three word-ends away.',
-      demoKeys: '3e',
+      demoKeys: '2e',
+      demoLines: ['polish the helm bright'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['e'],
     startLines: ['sharpen the blade well'],
@@ -237,7 +254,9 @@ export const TRIALS: VimTrial[] = [
         'letter. Counts work as always: 4b retreats four word-beginnings. ' +
         'Your task: you stand at the very end of the line, on the last n of "cauldron". Retreat to the ' +
         'b of "brew".',
-      demoKeys: '4b',
+      demoKeys: '3b',
+      demoLines: ['embers glow in the hearth'],
+      demoCursor: { row: 0, col: 24 },
     },
     keysTaught: ['b'],
     startLines: ['potions brew in the cauldron'],
@@ -262,7 +281,9 @@ export const TRIALS: VimTrial[] = [
         '0 (zero) snaps back to the very first column. There is also ^ (caret), which goes to the first ' +
         'NON-blank character — handy on indented lines. ' +
         'Your task: drop one line down with j, then ride $ to the final t of "night".',
-      demoKeys: 'j$',
+      demoKeys: '$',
+      demoLines: ['the herald reads the decree'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['$', '0', '^'],
     startLines: ['the moat lies still', 'the drawbridge groans at night'],
@@ -287,7 +308,9 @@ export const TRIALS: VimTrial[] = [
         'takes you to the FIRST line. Give G a number and it goes to exactly that line: 4G means ' +
         '"line four, counted from the top". After the jump the cursor parks on the line\'s first ' +
         'non-blank character. Your task: the armory is the fourth floor of the keep — jump straight to it.',
-      demoKeys: '4G',
+      demoKeys: '3G',
+      demoLines: ['the cellar', 'the kitchen', 'the great hall', 'the solar'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['G', 'gg'],
     startLines: ['the watchtower', 'the granary', 'the chapel', '  the armory', 'the stables', 'the crypt'],
@@ -314,7 +337,9 @@ export const TRIALS: VimTrial[] = [
         'dw = "delete from here to where w would land", i.e. the word under the cursor plus the space ' +
         'after it. This is vim\'s grammar: verb (d) + motion (w) = action. Anything you can move over, ' +
         'you can delete. Your task: leap to "foul" with 2w, then erase it with dw.',
-      demoKeys: '2wdw',
+      demoKeys: 'wdw',
+      demoLines: ['hush the loud herald'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['d', 'dw'],
     startLines: ['slay the foul dragon'],
@@ -339,7 +364,9 @@ export const TRIALS: VimTrial[] = [
         'where in the line you stand. The lines below slide up to close the gap, and the deleted line is ' +
         'remembered (more on that soon — you will paste it back in a later trial). ' +
         'Your task: the second step of this potion recipe is a disaster. Go down one line and remove it whole.',
-      demoKeys: 'jdd',
+      demoKeys: 'dd',
+      demoLines: ['the true map', 'the false map', 'the torn map'],
+      demoCursor: { row: 1, col: 0 },
     },
     keysTaught: ['dd'],
     startLines: ['brew the potion', 'spill it everywhere', 'serve the queen'],
@@ -365,7 +392,9 @@ export const TRIALS: VimTrial[] = [
         'from there to the edge burns away. ' +
         'Your task: the order "raise the gate, lower the gate" contradicts itself. Leap to the comma ' +
         'with 3w (remember: punctuation is its own word), then burn from there to the end.',
-      demoKeys: '3wd$',
+      demoKeys: '2wd$',
+      demoLines: ['march north, then turn south'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['d$'],
     startLines: ['raise the gate, lower the gate'],
@@ -391,6 +420,8 @@ export const TRIALS: VimTrial[] = [
         '(capital P would lay it above). Delete does the same trick: whatever dd removes, p can put back. ' +
         'Your task: the cauldron incantation must be spoken twice. Yank the line and put a copy below it.',
       demoKeys: 'yyp',
+      demoLines: ['ring the great bell'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['yy', 'p', 'P'],
     startLines: ['stir the cauldron thrice'],
@@ -417,6 +448,8 @@ export const TRIALS: VimTrial[] = [
         'Your task: the battle plan is out of order — the beacon must come second. Swap the two lines ' +
         'with ddp.',
       demoKeys: 'ddp',
+      demoLines: ['second: raise the flag', 'first: open the gate'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['ddp'],
     startLines: ['second: light the beacon', 'first: climb the tower'],
@@ -443,6 +476,8 @@ export const TRIALS: VimTrial[] = [
         'Two transposed letters fixed in two keys. ' +
         'Your task: walk onto the e of "teh", then perform the switcheroo.',
       demoKeys: 'lxp',
+      demoLines: ['sotrm clouds gather'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['xp'],
     startLines: ['teh dragon stirs'],
@@ -470,7 +505,9 @@ export const TRIALS: VimTrial[] = [
         'press the Escape key to sheathe the quill and return to normal mode, where hjkl are feet again. ' +
         'This rhythm — i, type, Escape — is the heartbeat of vim. ' +
         'Your task: this dragon needs a title. Insert the text "fire " before it.',
-      demoKeys: 'ifire <esc>',
+      demoKeys: 'ibrave <esc>',
+      demoLines: ['knight!'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['i', '<esc>'],
     startLines: ['dragon!'],
@@ -495,7 +532,9 @@ export const TRIALS: VimTrial[] = [
         'leaps to the very END of the line and starts inserting there, all in one key. Its mirror, ' +
         'capital I, inserts at the start of the line. No need to travel with $ first — A does both at once. ' +
         'Your task: the letter to the dragon ends too abruptly. Append " out" to the end of the line.',
-      demoKeys: 'A out<esc>',
+      demoKeys: 'A now<esc>',
+      demoLines: ['ride for the hills'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['A', 'a', 'I'],
     startLines: ['dear dragon, please move'],
@@ -521,7 +560,9 @@ export const TRIALS: VimTrial[] = [
         'opens the line ABOVE. Remember to press Escape when you finish writing. ' +
         'Your task: the quest ledger needs a second entry. Open a line below and write ' +
         '"quest two: fetch fire".',
-      demoKeys: 'oquest two: fetch fire<esc>',
+      demoKeys: 'ospell two: summon rain<esc>',
+      demoLines: ['spell one: summon wind'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['o', 'O'],
     startLines: ['quest one: fetch water'],
@@ -547,7 +588,9 @@ export const TRIALS: VimTrial[] = [
         'in one stroke. (Helpfully, cw eats only the word itself and leaves the space after it, so your ' +
         'spacing survives.) Finish with Escape, as always. ' +
         'Your task: the cry "attack" is wrong — change it to "defend".',
-      demoKeys: 'cwdefend<esc>',
+      demoKeys: 'cwretreat<esc>',
+      demoLines: ['advance the troops at noon'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['c', 'cw'],
     startLines: ['attack the gate at dawn'],
@@ -573,7 +616,9 @@ export const TRIALS: VimTrial[] = [
         'change: use 3w to stand on the first character you want rewritten. ' +
         'Your task: the password "swordfish" is compromised. Change everything from it onward to ' +
         '"dragonscale".',
-      demoKeys: '3wc$dragonscale<esc>',
+      demoKeys: '2wc$ironwood<esc>',
+      demoLines: ['guard the oakleaf'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['c$'],
     startLines: ['the password is swordfish'],
@@ -598,7 +643,9 @@ export const TRIALS: VimTrial[] = [
         'on it) and puts you in insert mode on the now-empty line. It is dd and o rolled into one. ' +
         'Your task: the middle order on the provisions list is unfit for a wizard. Go down one line and ' +
         'rewrite it entirely as "water for the wizard".',
-      demoKeys: 'jccwater for the wizard<esc>',
+      demoKeys: 'jccbread for the monks<esc>',
+      demoLines: ['gold for the crown', 'silk for the lords', 'iron for the smith'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['cc'],
     startLines: ['ale for the guards', 'mead for the king', 'wine for the queen'],
@@ -626,7 +673,9 @@ export const TRIALS: VimTrial[] = [
         'the word\'s middle letter, where cw would only change the rest of it. Verb + object: c + iw. ' +
         'Then type the new word and press Escape. ' +
         'Your task: you stand mid-word in "firebolt". Change the whole word to "icebolt" without moving.',
-      demoKeys: 'ciwicebolt<esc>',
+      demoKeys: 'ciwfrostfang<esc>',
+      demoLines: ['draw the longsword now'],
+      demoCursor: { row: 0, col: 11 },
     },
     keysTaught: ['iw', 'ciw'],
     startLines: [
@@ -670,6 +719,8 @@ export const TRIALS: VimTrial[] = [
         '(a" — "around quotes" — would take the quote marks too.) ' +
         'Your task: take back what was said. Empty the quoted surrender from the start of the line.',
       demoKeys: 'di"',
+      demoLines: ['the oath reads "loyal unto death" plainly'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['i"', 'a"'],
     startLines: [
@@ -714,6 +765,8 @@ export const TRIALS: VimTrial[] = [
         'Your task: the ballista order is too specific for the war log. Stand inside the parens of ' +
         'aimBallista and gut them.',
       demoKeys: 'di(',
+      demoLines: ['castSpell(fire and brimstone)'],
+      demoCursor: { row: 0, col: 14 },
     },
     keysTaught: ['i(', 'a('],
     startLines: [
@@ -758,6 +811,8 @@ export const TRIALS: VimTrial[] = [
         'together. This is the move that makes vim feel like sorcery in real code. ' +
         'Your task: the plan inside the braces is too bold. Stand anywhere in the block and hollow it out.',
       demoKeys: 'di{',
+      demoLines: ['while (nightFalls) {', '  bar the door', '  douse the torch', '}'],
+      demoCursor: { row: 1, col: 4 },
     },
     keysTaught: ['i{', 'a{'],
     startLines: [
@@ -795,6 +850,8 @@ export const TRIALS: VimTrial[] = [
         'replace one. ' +
         'Your task: the recipe overstates the peppers. From inside "really", swallow the word whole.',
       demoKeys: 'daw',
+      demoLines: ['the very ancient scroll crumbles'],
+      demoCursor: { row: 0, col: 6 },
     },
     keysTaught: ['aw', 'daw'],
     startLines: [
@@ -836,7 +893,9 @@ export const TRIALS: VimTrial[] = [
         'reaps one line; 3dd reaps three, 2cc changes two, 3yy yanks three. Count first, then the ' +
         'doubled verb. An overlong count simply clamps to the end of the scroll. ' +
         'Your task: three forged orders sit atop the true command — reap all three at once.',
-      demoKeys: '3dd',
+      demoKeys: '2dd',
+      demoLines: ['the false runes:', 'fool the watch', 'jam the lock', 'the true seal holds'],
+      demoCursor: { row: 1, col: 0 },
     },
     keysTaught: ['dd', 'cc', 'yy'],
     startLines: [
@@ -867,7 +926,9 @@ export const TRIALS: VimTrial[] = [
         'start marking lines, grow the mark with j or k, and only then strike with d (or y, or c). You ' +
         'select first and act second, watching the block grow before the blade falls. ' +
         'Your task: mark the three lines of the broken oath and strike them as one.',
-      demoKeys: 'Vjjd',
+      demoKeys: 'Vjd',
+      demoLines: ['the false ledger:', 'two debts unpaid', 'one bribe taken', 'the rest is honest'],
+      demoCursor: { row: 1, col: 0 },
     },
     keysTaught: ['V', 'j', 'd'],
     startLines: [
@@ -900,7 +961,9 @@ export const TRIALS: VimTrial[] = [
         'occurrence of it on this line. fv means "find the next v". Wrong one? Press ; (semicolon) to ' +
         'repeat the same hunt further along, and , (comma) to repeat it backward. ' +
         'Your task: land on the v of "lava". The first fv finds the v in "over" — press ; to leap onward.',
-      demoKeys: 'fv;',
+      demoKeys: 'fr;',
+      demoLines: ['the ranger crosses the river'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['f', ';', ','],
     startLines: ['leap over the lava pit'],
@@ -926,7 +989,9 @@ export const TRIALS: VimTrial[] = [
         'character survives. This is how you trim words without harming what follows. ' +
         'Your task: the order says "open the iron gate" but the iron gate is rusted shut. Leap to "iron" ' +
         'with 2w, then delete until the g of "gate" — sparing the g.',
-      demoKeys: '2wdtg',
+      demoKeys: 'wdtm',
+      demoLines: ['cross the dark moor'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['t', 'dt'],
     startLines: ['open the iron gate'],
@@ -953,7 +1018,9 @@ export const TRIALS: VimTrial[] = [
         'Your task: you stand at the end of the wall. Hunt backward to the o of "on" — the first Fo ' +
         'catches the o of "swords"... no wait, it catches the closer one. Press ; if your first catch ' +
         'is not the o of "swords".',
-      demoKeys: 'Fo;',
+      demoKeys: 'Fe;',
+      demoLines: ['eleven shields line the keep'],
+      demoCursor: { row: 0, col: 27 },
     },
     keysTaught: ['F', 'T'],
     startLines: ['seven swords on the wall'],
@@ -978,7 +1045,9 @@ export const TRIALS: VimTrial[] = [
         'see it appear), then press Enter. The cursor leaps to the next place that text occurs — across ' +
         'as many lines as needed, wrapping around the end. ' +
         'Your task: somewhere in the armory inventory lies an "ember" blade. Seek it with /ember and Enter.',
-      demoKeys: '/ember<cr>',
+      demoKeys: '/silver<cr>',
+      demoLines: ['the treasury holds:', 'a pile of copper', 'a silver chalice', 'a sack of grain'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['/'],
     startLines: [
@@ -1010,7 +1079,9 @@ export const TRIALS: VimTrial[] = [
         'to the first. ' +
         'Your task: the vault ledger lists gold three times. Search /gold, then press n once to reach the ' +
         'SECOND entry.',
-      demoKeys: '/gold<cr>n',
+      demoKeys: '/rune<cr>n',
+      demoLines: ['the warded door:', 'a rune of fire', 'a band of steel', 'a rune of frost', 'a rune of stone'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['n', 'N'],
     startLines: [
@@ -1044,7 +1115,9 @@ export const TRIALS: VimTrial[] = [
         'with ciw — the search drops you ON the word, and ciw needs nothing more. ' +
         'Your task: somewhere in the quartermaster\'s list hides a "rusty" torch. Seek it, then change ' +
         'the word to "gleaming". Two arts, one breath.',
-      demoKeys: '/rusty<cr>ciwgleaming<esc>',
+      demoKeys: '/dull<cr>ciwkeen<esc>',
+      demoLines: ['the smith checks the rack:', 'a sturdy axe', 'a dull blade', 'a fine spear'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['/', 'ciw'],
     startLines: [
@@ -1093,7 +1166,13 @@ export const TRIALS: VimTrial[] = [
         'closing the gap; diw deletes the word but leaves the space. Replacing a word you stand inside ' +
         'is ciw — no walk to the start, no stray gap. ' +
         'Your task: you stand mid-word in "craven". Change the whole word to "valiant" without moving.',
-      demoKeys: 'ciwvaliant<esc>',
+      demoKeys: 'ciwloyal<esc>',
+      demoLines: [
+        'the scribe drafts the notice:',
+        'beware, the craven knave flees',
+        'so let it be posted',
+      ],
+      demoCursor: { row: 1, col: 14 },
     },
     keysTaught: ['cw', 'ciw', 'diw', 'daw'],
     startLines: [
@@ -1129,7 +1208,15 @@ export const TRIALS: VimTrial[] = [
         'next blank line, { leaps up to the previous one. A blank line is the boundary between verses. ' +
         'On a long scroll this clears whole stanzas in a keystroke instead of a hail of j\'s. ' +
         'Your task: from the top of the ballad, vault down two stanzas to the blank line before the last verse.',
-      demoKeys: '}}',
+      demoKeys: '}',
+      demoLines: [
+        'the watch fires burn',
+        'along the long wall',
+        '',
+        'the cold wind carries',
+        'the howl of distant wolves',
+      ],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['}', '{'],
     startLines: [
@@ -1165,6 +1252,17 @@ export const TRIALS: VimTrial[] = [
         'and y all take them. ' +
         'Your task: the forged middle verse must go — raze it cleanly, blank line and all.',
       demoKeys: 'dap',
+      demoLines: [
+        'first the trumpets sound',
+        'and the banners rise',
+        '',
+        'next the false fanfare',
+        'that no one ordered',
+        '',
+        'last the king appears',
+        'to the roar of the crowd',
+      ],
+      demoCursor: { row: 3, col: 0 },
     },
     keysTaught: ['ip', 'ap', 'dap'],
     startLines: [
@@ -1210,7 +1308,9 @@ export const TRIALS: VimTrial[] = [
         'whole take in one stroke. Record an edit that ends by stepping to the next line, and a single ' +
         '@a repeats it there. ' +
         'Your task: record the edit that adds "!" to the first banner and drops a line, then unleash it once on the second.',
-      demoKeys: 'qaA!<esc>jq@a',
+      demoKeys: 'qaA?<esc>jq@a',
+      demoLines: ['who goes there', 'what is the password', 'where is the captain'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['q', '@'],
     startLines: ['hail the king', 'hail the queen', 'hail the realm'],
@@ -1239,7 +1339,9 @@ export const TRIALS: VimTrial[] = [
         'repetitive edit, then sweep it down a column of lines that all need the same change. (@@ ' +
         'repeats the last macro once more, if you would rather feel each strike.) ' +
         'Your task: record the full-stop edit on rank 1, then unleash it three times to finish ranks 2 through 4.',
-      demoKeys: 'qaA.<esc>jq3@a',
+      demoKeys: 'qaA;<esc>jq2@a',
+      demoLines: ['guard 1', 'guard 2', 'guard 3', 'rest'],
+      demoCursor: { row: 0, col: 0 },
     },
     keysTaught: ['@', '@@'],
     startLines: ['rank 1', 'rank 2', 'rank 3', 'rank 4', 'done'],

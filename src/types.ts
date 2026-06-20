@@ -330,6 +330,13 @@ export interface VimTrial {
     body: string;
     /** Keystroke sequence demonstrated on the card, e.g. "ciw". */
     demoKeys: string;
+    /**
+     * Scene the demo plays on. When set, the demo shows the mechanic on a
+     * DIFFERENT example than the scored task, so the player transfers the idea
+     * rather than copying keys. Falls back to startLines/startCursor when absent.
+     */
+    demoLines?: string[];
+    demoCursor?: VimCursor;
   };
   /** Keys/concepts this trial introduces, e.g. ['c', 'iw']. */
   keysTaught: string[];

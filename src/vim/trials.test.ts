@@ -74,6 +74,17 @@ describe('TRIALS curriculum structure', () => {
     }
   });
 
+  it('the demo teaches by a different example than the scored task', () => {
+    // A player who could copy the demo keystroke-for-keystroke onto the same
+    // scene would not be learning — so every demo either plays on its own scene
+    // (demoLines) or uses a sequence that differs from the scored parSolution.
+    for (const t of TRIALS) {
+      const ownScene = t.lesson.demoLines !== undefined;
+      const differentKeys = t.lesson.demoKeys !== t.parSolution;
+      expect(ownScene || differentKeys, `${t.id}: demo must differ from the scored task`).toBe(true);
+    }
+  });
+
   it('start cursors sit on legal ground (createVimBuffer does not need to clamp them)', () => {
     for (const t of TRIALS) {
       const buf = createVimBuffer(t.startLines, t.startCursor);

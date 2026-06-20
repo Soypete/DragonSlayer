@@ -86,13 +86,14 @@ export function TrialsScreen({ save, onChronicle, onBack }: TrialsScreenProps) {
     () => (trial ? keysFromString(trial.lesson.demoKeys) : []),
     [trial],
   );
-  const demoBuffer = useMemo(
-    () =>
-      trial
-        ? playKeys(createVimBuffer(trial.startLines, trial.startCursor), demoKeys.slice(0, demoStep))
-        : null,
-    [trial, demoKeys, demoStep],
-  );
+  const demoBuffer = useMemo(() => {
+    if (!trial) return null;
+    // The demo plays on its own scene when one is given, so it teaches by
+    // example rather than spoiling the scored task's exact keys.
+    const lines = trial.lesson.demoLines ?? trial.startLines;
+    const cursor = trial.lesson.demoCursor ?? trial.startCursor;
+    return playKeys(createVimBuffer(lines, cursor), demoKeys.slice(0, demoStep));
+  }, [trial, demoKeys, demoStep]);
 
   // The scored clock: wall time lives in the UI layer alone.
   useEffect(() => {

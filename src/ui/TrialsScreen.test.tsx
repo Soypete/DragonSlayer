@@ -150,7 +150,7 @@ describe('the Sword-School — lesson card', () => {
     expect(frame).toContain('l walks right, h walks left');
     expect(frame).toContain('letter keys ARE your feet');
     expect(frame).toContain('in 3 keystrokes');
-    expect(frame).toContain('(0/3 played)');
+    expect(frame).toContain('(0/2 played)');
     expect(frame).toContain('Goal: rest the cursor on line 1, column 4.');
     unmount();
   });
@@ -161,15 +161,13 @@ describe('the Sword-School — lesson card', () => {
     await settle();
     stdin.write(' ');
     await settle();
-    expect(lastFrame()).toContain('(1/3 played)');
+    expect(lastFrame()).toContain('(1/2 played)');
     stdin.write(' ');
     await settle();
-    stdin.write(' ');
-    await settle();
-    expect(lastFrame()).toContain('(3/3 played)');
+    expect(lastFrame()).toContain('(2/2 played)');
     stdin.write(' '); // wraps back to the start
     await settle();
-    expect(lastFrame()).toContain('(0/3 played)');
+    expect(lastFrame()).toContain('(0/2 played)');
     unmount();
   });
 });
