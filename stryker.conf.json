@@ -7,12 +7,10 @@
   "concurrency": 8,
   "timeoutMS": 20000,
   "mutate": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
+    "src/vim/**/*.ts",
+    "src/game/**/*.ts",
     "!src/**/*.test.ts",
-    "!src/**/*.test.tsx",
-    "!src/types.ts",
-    "!src/index.tsx"
+    "!src/**/*.test.tsx"
   ],
   "tempDirName": ".stryker-tmp",
   "cleanTempDir": true
