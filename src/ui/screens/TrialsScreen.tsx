@@ -40,6 +40,7 @@ const TIER_NAMES: Record<number, string> = {
   4: "The Scribe's Arts · i a o, c, esc",
   5: "The Hunter's Arts · f t ; , / n",
   6: 'Strike the Heart · text objects iw i" i( i{',
+  7: 'Advanced Arts · { } ip ap · V · q @',
 };
 
 type Phase = 'list' | 'lesson' | 'practice' | 'scored' | 'debrief';
@@ -275,7 +276,7 @@ function RosterView({
     <Box flexDirection="column" paddingX={1}>
       <Text color={COLORS.gold}>⚔ The Sword-School — vim trials of the realm</Text>
       <Text color={COLORS.steel}>
-        Tier <Text color={COLORS.banner}>{unlockedTier}</Text> of 6 unlocked · {totalStars}/
+        Tier <Text color={COLORS.banner}>{unlockedTier}</Text> of 7 unlocked · {totalStars}/
         {TRIALS.length * 3} stars · <Text color={COLORS.gold}>⛁ {save.gold} gold</Text>
         {progress.bladeBuff > 1 ? (
           <Text color={COLORS.torch}>
