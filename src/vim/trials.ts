@@ -1134,6 +1134,67 @@ export const TRIALS: VimTrial[] = [
       'You stand in the forged verse. d, a, w would take a word; d, a, p takes the PARAGRAPH and its trailing blank. The two true verses close ranks with one blank between them. (dip would have left a stray blank line.) Three keys.',
     ],
   },
+  {
+    id: 't7-thrice-cut',
+    tier: 7,
+    title: 'Thrice-Cut',
+    lesson: {
+      heading: 'A count before dd reaps many lines — 3dd is to dd what 4w was to w',
+      body:
+        'The count you learned in Tier 2 (4w bounds four words at once) works on line-strikes too. dd ' +
+        'reaps one line; 3dd reaps three, 2cc changes two, 3yy yanks three — count first, then the ' +
+        'doubled verb. The count clamps to the scroll, so an overlong number simply stops at the end. ' +
+        'Your task: three lines of forged orders sit atop the true command — reap all three at once.',
+      demoKeys: '3dd',
+    },
+    keysTaught: ['3dd', 'count + dd'],
+    startLines: [
+      'burn the eastern bridge',
+      'poison the well',
+      'spare no farmstead',
+      'HOLD THE LINE AND WAIT',
+    ],
+    startCursor: { row: 0, col: 0 },
+    goal: { kind: 'text', lines: ['HOLD THE LINE AND WAIT'] },
+    par: 3,
+    parSolution: '3dd',
+    hints: [
+      'Put a count in front of the line-reaping verb, the way you once put one in front of w.',
+      'Type 3dd — three keys.',
+      'From the first forged order: 3, then dd. Just as 4w leapt four words, 3dd reaps three lines in one breath — the three lies vanish and "HOLD THE LINE AND WAIT" stands alone. Three keys.',
+    ],
+  },
+  {
+    id: 't7-mark-then-strike',
+    tier: 7,
+    title: 'Mark, Then Strike',
+    lesson: {
+      heading: 'Visual line inverts the grammar: V marks first, THEN d strikes',
+      body:
+        'Every art so far has been verb-then-target: d, then a motion. Visual-line flips it — press V to ' +
+        'start marking lines, grow the mark with j (or k), and ONLY THEN strike with d (or y, or c). ' +
+        'Select first, act second. It shines when you can SEE the block growing and want to be sure ' +
+        'before the blade falls. ' +
+        'Your task: mark the three lines of the broken oath and strike them as one.',
+      demoKeys: 'Vjjd',
+    },
+    keysTaught: ['V', 'Vjjd'],
+    startLines: [
+      'I swore to guard the keep',
+      'I swore to keep no secrets',
+      'I swore to never flee',
+      'and every word was a lie',
+    ],
+    startCursor: { row: 0, col: 0 },
+    goal: { kind: 'text', lines: ['and every word was a lie'] },
+    par: 4,
+    parSolution: 'Vjjd',
+    hints: [
+      'Enter the select-first stance, grow the mark down two lines, and only then strike.',
+      'Type V, then j, then j, then d.',
+      'Press V — the first oath is marked and the stance reads VISUAL LINE. j, then j, extend the mark down over all three oaths (watch the count grow). Now d falls on the whole block. Only the final line remains. Four keys — select, then strike.',
+    ],
+  },
 ];
 
 // ── Scoring ──────────────────────────────────────────────────────────────────

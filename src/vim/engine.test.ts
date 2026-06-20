@@ -333,6 +333,23 @@ describe('tier 3 — delete, yank, put', () => {
     expect(run(['a', 'b'], '5dd').lines).toEqual(['']);
   });
 
+  it('2cc changes a run of lines and opens insert', () => {
+    const b = run(['a', 'b', 'c', 'd'], '2ccnew<esc>');
+    expect(b.lines).toEqual(['new', 'c', 'd']);
+    expect(b.mode).toBe('normal');
+  });
+
+  it('3yy yanks three lines line-wise; p pastes the block', () => {
+    const b = run(['a', 'b', 'c', 'd'], '3yy');
+    expect(b.register).toEqual({ text: ['a', 'b', 'c'], linewise: true });
+    expect(run(['a', 'b', 'c', 'd'], '3yyGp').lines).toEqual(['a', 'b', 'c', 'd', 'a', 'b', 'c']);
+  });
+
+  it('2cc clamps past the last line without throwing', () => {
+    const b = run(['a', 'b'], '5ccgone<esc>');
+    expect(b.lines).toEqual(['gone']);
+  });
+
   it('dj reaps this line and the next; dj on the last line whiffs', () => {
     expect(run(['a', 'b', 'c'], 'dj').lines).toEqual(['c']);
     expect(run(['a', 'b', 'c'], 'dj', { row: 2, col: 0 }).lines).toEqual(['a', 'b', 'c']);
@@ -940,5 +957,69 @@ describe('paragraph motions { } and objects ip / ap', () => {
   it('di{ still seizes a brace pair — the object form is unshadowed by the motion', () => {
     const b = run(['guard { gold } here'], 'di{', { row: 0, col: 6 });
     expect(b.lines).toEqual(['guard {} here']);
+  });
+});
+
+describe('visual-line mode (V, linewise select, d/y/c)', () => {
+  it('V enters visual-line and anchors the current line', () => {
+    const b = run(['a', 'b', 'c'], 'V', { row: 1, col: 0 });
+    expect(b.mode).toBe('visual-line');
+    expect(b.visualStart).toEqual({ row: 1, col: 0 });
+  });
+
+  it('Vjjd deletes the three selected lines, back to normal', () => {
+    const b = run(['a', 'b', 'c', 'd', 'e'], 'Vjjd');
+    expect(b.lines).toEqual(['d', 'e']);
+    expect(b.mode).toBe('normal');
+    expect(b.visualStart).toBeNull();
+    expect(b.register).toEqual({ text: ['a', 'b', 'c'], linewise: true });
+  });
+
+  it('Vjy yanks the span line-wise; p pastes it', () => {
+    const b = run(['a', 'b', 'c'], 'Vjy');
+    expect(b.register).toEqual({ text: ['a', 'b'], linewise: true });
+    expect(b.mode).toBe('normal');
+    expect(run(['a', 'b', 'c'], 'VjyGp').lines).toEqual(['a', 'b', 'c', 'a', 'b']);
+  });
+
+  it('Vjc clears the span and opens insert', () => {
+    const b = run(['a', 'b', 'c', 'd'], 'Vjcnew<esc>');
+    expect(b.lines).toEqual(['new', 'c', 'd']);
+    expect(b.mode).toBe('normal');
+  });
+
+  it('selection grows upward too (k), order-independent', () => {
+    const b = run(['a', 'b', 'c', 'd'], 'Vkd', { row: 2, col: 0 });
+    expect(b.lines).toEqual(['a', 'd']);
+  });
+
+  it('a count drives the motion (V2jd)', () => {
+    const b = run(['a', 'b', 'c', 'd', 'e'], 'V2jd');
+    expect(b.lines).toEqual(['d', 'e']);
+  });
+
+  it('VGd sweeps to the last line; Vggd to the first', () => {
+    expect(run(['a', 'b', 'c'], 'VGd').lines).toEqual(['']);
+    expect(run(['a', 'b', 'c'], 'Vggd', { row: 2, col: 0 }).lines).toEqual(['']);
+  });
+
+  it('x is a synonym for d on the selection', () => {
+    expect(run(['a', 'b', 'c'], 'Vjx').lines).toEqual(['c']);
+  });
+
+  it('<esc> cancels visual-line and leaves the buffer untouched', () => {
+    const b = run(['a', 'b', 'c'], 'Vj<esc>');
+    expect(b.mode).toBe('normal');
+    expect(b.visualStart).toBeNull();
+    expect(b.lines).toEqual(['a', 'b', 'c']);
+  });
+
+  it('a single selected line deletes just that line', () => {
+    expect(run(['a', 'b', 'c'], 'Vd', { row: 1, col: 0 }).lines).toEqual(['a', 'c']);
+  });
+
+  it('motions clamp at the file edges without escaping the buffer', () => {
+    const b = run(['a', 'b'], 'V9jd');
+    expect(b.lines).toEqual(['']);
   });
 });

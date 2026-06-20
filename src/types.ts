@@ -275,7 +275,7 @@ export interface CampaignEntry {
 
 // ── Vim trials (sword-school) ────────────────────────────────────────────────
 
-export type VimMode = 'normal' | 'insert' | 'operator-pending' | 'search';
+export type VimMode = 'normal' | 'insert' | 'operator-pending' | 'search' | 'visual-line';
 
 export interface VimCursor {
   row: number;
@@ -298,6 +298,8 @@ export interface VimBuffer {
   searchDraft: string;
   /** Last f/F/t/T, for ; and , */
   lastFind: { key: 'f' | 'F' | 't' | 'T'; char: string } | null;
+  /** Anchor row of a visual-line selection; null outside 'visual-line' mode. */
+  visualStart: VimCursor | null;
 }
 
 export interface VimKeyResult {

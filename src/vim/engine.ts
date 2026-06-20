@@ -911,6 +911,12 @@ function normalKey(b: VimBuffer, key: string): VimKeyResult {
       return execSearchRepeat(b, true);
     case 'N':
       return execSearchRepeat(b, false);
+    case 'V':
+      // Enter visual-line, anchoring the current line.
+      return {
+        buffer: { ...b, mode: 'visual-line', visualStart: { ...b.cursor }, pendingCount: null },
+        handled: true,
+      };
   }
   return unhandled(b);
 }
@@ -999,6 +1005,7 @@ export function createVimBuffer(lines: string[], cursor?: VimCursor): VimBuffer 
     searchTerm: null,
     searchDraft: '',
     lastFind: null,
+    visualStart: null,
   };
 }
 
@@ -1008,12 +1015,82 @@ export function createVimBuffer(lines: string[], cursor?: VimCursor): VimBuffer 
  * Keys outside the taught subset return { handled: false } with the text and
  * cursor untouched (an in-flight operator/count is aborted, as vi would).
  */
+/**
+ * Visual-line mode: V anchors a line, motions grow/shrink the selection, and
+ * d/y/c strike the whole span line-wise. The inverse of normal mode's
+ * "verb then motion" — here you select first, then act.
+ */
+function visualLineKey(b: VimBuffer, key: string): VimKeyResult {
+  const lastRow = b.lines.length - 1;
+  const anchor = b.visualStart ?? b.cursor;
+
+  const leaveTo = (patch: Partial<VimBuffer>): VimKeyResult =>
+    done(b, { mode: 'normal', visualStart: null, pendingCount: null, ...patch });
+
+  if (key === '<esc>') return leaveTo({}); // cancel — buffer untouched
+
+  // Count digits grow the next motion ('0' alone is the first-column motion).
+  if (/^[0-9]$/.test(key) && !(key === '0' && b.pendingCount === null)) {
+    const next = Math.min((b.pendingCount ?? 0) * 10 + Number(key), MAX_COUNT);
+    return { buffer: { ...b, pendingCount: next }, handled: true };
+  }
+
+  const count = b.pendingCount ?? 1;
+  const explicit = b.pendingCount !== null;
+  const moveTo = (row: number): VimKeyResult => {
+    const r = clamp(row, 0, lastRow);
+    return { buffer: { ...b, cursor: { row: r, col: clampCol(b.lines[r], b.cursor.col) }, pendingCount: null }, handled: true };
+  };
+
+  switch (key) {
+    case 'j':
+      return moveTo(b.cursor.row + count);
+    case 'k':
+      return moveTo(b.cursor.row - count);
+    case 'G':
+      return moveTo(explicit ? count - 1 : lastRow);
+    case '0':
+    case '^':
+    case '$':
+      return { buffer: b, handled: true }; // column motions are inert line-wise
+    case '}':
+      return moveTo(paragraphTarget(b.lines, b.cursor.row, 1, count));
+    case '{':
+      return moveTo(paragraphTarget(b.lines, b.cursor.row, -1, count));
+  }
+
+  if (b.pendingOperator === 'g') {
+    // The twin of a waiting g: gg jumps to the first line (or Ngg).
+    if (key === 'g') {
+      const r = clamp(explicit ? count - 1 : 0, 0, lastRow);
+      return { buffer: { ...b, cursor: { row: r, col: clampCol(b.lines[r], b.cursor.col) }, pendingOperator: null, pendingCount: null }, handled: true };
+    }
+    return { buffer: { ...b, pendingOperator: null }, handled: true }; // gx — abandon the g
+  }
+  if (key === 'g') {
+    // A lone g waits for its twin.
+    return { buffer: { ...b, pendingOperator: 'g' }, handled: true };
+  }
+
+  // Operators act on the whole selected span, then drop back to normal.
+  if (key === 'd' || key === 'x' || key === 'y' || key === 'c') {
+    const op: Op = key === 'x' ? 'd' : (key as Op);
+    const res = applyLineOperator({ ...b, visualStart: null }, op, anchor.row, b.cursor.row);
+    const mode = op === 'c' ? 'insert' : 'normal';
+    return { buffer: { ...res.buffer, mode, visualStart: null, pendingCount: null }, handled: true };
+  }
+
+  return { buffer: b, handled: true }; // swallow stray keys; V holds until esc or a verb
+}
+
 export function vimKey(buffer: VimBuffer, key: string): VimKeyResult {
   switch (buffer.mode) {
     case 'insert':
       return insertKey(buffer, key);
     case 'search':
       return searchKey(buffer, key);
+    case 'visual-line':
+      return visualLineKey(buffer, key);
     default:
       return normalKey(buffer, key);
   }
