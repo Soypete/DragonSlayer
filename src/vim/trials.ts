@@ -1055,6 +1055,85 @@ export const TRIALS: VimTrial[] = [
       'You stand on the a in "craven", mid-word. Because you are INSIDE the word and REPLACING it, the cut is ciw — not cw (that needs the start) and not daw (that removes, not replaces). c, i, w empties the whole word with the quill drawn; type valiant, press Escape. "the valiant prince returns". Eleven keys, no travel.',
     ],
   },
+  {
+    id: 't7-leap-the-stanzas',
+    tier: 7,
+    title: 'Leap the Stanzas',
+    lesson: {
+      heading: '{ and } are w and b for paragraphs — they vault between blank lines',
+      body:
+        'Just as w and b stride word to word, } and { vault paragraph to paragraph: } leaps DOWN to ' +
+        'the next blank line, { leaps UP to the previous one. A blank line is the boundary. On a long ' +
+        'scroll this clears whole verses in a keystroke instead of a hail of j\'s. ' +
+        'Your task: from the top of the ballad, vault down two paragraphs to the blank line before the ' +
+        'final verse.',
+      demoKeys: '}}',
+    },
+    keysTaught: ['}', '{'],
+    startLines: [
+      'the bard tunes the lute',
+      'and clears his throat',
+      '',
+      'he sings of the long siege',
+      'of winters spent in mud',
+      '',
+      'and then the dragon came',
+      'and the song turns to ash',
+    ],
+    startCursor: { row: 0, col: 0 },
+    goal: { kind: 'cursor', row: 5, col: 0 },
+    par: 2,
+    parSolution: '}}',
+    hints: [
+      'There is a paragraph-stride that vaults to the next blank line — use it twice.',
+      'Press } then } again.',
+      'From the first line, } lands you on the blank line after "throat" (the boundary of verse one). } again lands on the blank line after "mud". Two keystrokes clear two verses.',
+    ],
+  },
+  {
+    id: 't7-raze-the-verse',
+    tier: 7,
+    title: 'Raze the Verse',
+    lesson: {
+      heading: 'dap removes a whole paragraph and its trailing blank — "around paragraph"',
+      body:
+        'ip is the paragraph alone; ap is the paragraph AROUND — the verse plus the blank line beside ' +
+        'it. So dap deletes the whole stanza and closes the gap it left, the way daw did for a single ' +
+        'word. (dip would leave the blank line stranded.) ip and ap join the text-object family you ' +
+        'already know: c, d, y all take them. ' +
+        'Your task: the forged middle verse must go — raze it cleanly, blank line and all.',
+      demoKeys: 'dap',
+    },
+    keysTaught: ['ap', 'dap'],
+    startLines: [
+      'true is the first verse',
+      'sung in every hall',
+      '',
+      'false is the forged verse',
+      'slipped in by the spy',
+      '',
+      'true is the last verse',
+      'as the elders tell it',
+    ],
+    startCursor: { row: 3, col: 0 },
+    goal: {
+      kind: 'text',
+      lines: [
+        'true is the first verse',
+        'sung in every hall',
+        '',
+        'true is the last verse',
+        'as the elders tell it',
+      ],
+    },
+    par: 3,
+    parSolution: 'dap',
+    hints: [
+      'Delete "around" the paragraph, not just inside it — that takes the blank line with it.',
+      'Type dap — three keys.',
+      'You stand in the forged verse. d, a, w would take a word; d, a, p takes the PARAGRAPH and its trailing blank. The two true verses close ranks with one blank between them. (dip would have left a stray blank line.) Three keys.',
+    ],
+  },
 ];
 
 // ── Scoring ──────────────────────────────────────────────────────────────────

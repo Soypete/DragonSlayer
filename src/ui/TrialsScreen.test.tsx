@@ -14,7 +14,7 @@ import React, { useState } from 'react';
 import { Text } from 'ink';
 import { render } from 'ink-testing-library';
 import type { SaveGame } from '../types.js';
-import { newVimProgress } from '../vim/trials.js';
+import { TRIALS, newVimProgress } from '../vim/trials.js';
 import { TrialsScreen } from './screens/TrialsScreen.js';
 
 const ESC = '';
@@ -118,7 +118,7 @@ describe('the Sword-School — trial roster', () => {
     expect(lastFrame()).toContain('❯ ☆☆☆ Eastward, Squire');
     stdin.write('G');
     await settle();
-    expect(lastFrame()).toContain('❯ ☆☆☆ Choose Your Cut');
+    expect(lastFrame()).toContain(`❯ ☆☆☆ ${TRIALS[TRIALS.length - 1].title}`);
     stdin.write('g');
     await settle();
     stdin.write('g');
