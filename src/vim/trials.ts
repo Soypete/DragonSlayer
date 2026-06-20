@@ -2,12 +2,14 @@
  * The Sword-School Curriculum — vim trials for a knight who has never held
  * the blade.
  *
- * Six tiers, ordered like ThePrimeagen's vim-fundamentals: first you walk
- * (hjkl), then you stride (words and counts), then you cut (d/y/p), then you
- * write (insert and change), then you hunt (find and search), and finally you
- * strike at the heart of things (text objects). Every trial carries a lesson
- * card written for a true novice, a three-rung hint ladder, and a parSolution
- * that the tests replay through the real engine.
+ * Eight tiers: first you walk (hjkl), then you stride (words and counts), then
+ * you cut (d/y/p), then you write (insert and change), then you strike at the
+ * heart of things (text objects, counts, visual line), then you hunt (find and
+ * search), then the advanced arts (paragraphs, word-change clarity), and finally
+ * the macro arts (q/@). Text objects come before the hunt because ciw and daw
+ * feel powerful from the first stroke, where find earns its keep later. Every
+ * trial carries a lesson card written for a true novice, a three-rung hint
+ * ladder, and a parSolution that the tests replay through the real engine.
  *
  * Pure and deterministic throughout: no clocks, no dice. Timestamps and
  * durations arrive from outside in TrialResult.
@@ -611,154 +613,10 @@ export const TRIALS: VimTrial[] = [
     ],
   },
 
-  // ════ TIER 5 — The Hunter's Arts: f F t T ; , / n N ═══════════════════════
+  // ════ TIER 5 — Strike the Heart: text objects iw aw i" i( i{, 3dd, V ═══════
   {
-    id: 't5-hunt-the-rune',
+    id: 't5-words-heart',
     tier: 5,
-    title: 'Hunt the Rune',
-    lesson: {
-      heading: 'f + a character jumps ONTO its next occurrence; ; repeats the hunt',
-      body:
-        'f (find) takes one more keypress — the character you seek — and leaps the cursor onto the next ' +
-        'occurrence of it on this line. fv means "find the next v". Wrong one? Press ; (semicolon) to ' +
-        'repeat the same hunt further along, and , (comma) to repeat it backward. ' +
-        'Your task: land on the v of "lava". The first fv finds the v in "over" — press ; to leap onward.',
-      demoKeys: 'fv;',
-    },
-    keysTaught: ['f', ';', ','],
-    startLines: ['leap over the lava pit'],
-    startCursor: { row: 0, col: 0 },
-    goal: { kind: 'cursor', row: 0, col: 16 },
-    par: 3,
-    parSolution: 'fv;',
-    hints: [
-      'Use the find key with the letter you are hunting; if the first catch is the wrong one, repeat the hunt with the semicolon.',
-      'Type fv then ; — fv;.',
-      'f then v leaps onto the v of "over" — the first v on the line, but not yours. Press ; to repeat the hunt: the cursor lands on the v of "lava". Three keys, no counting of columns.',
-    ],
-  },
-  {
-    id: 't5-cut-until',
-    tier: 5,
-    title: 'Cut Until the Gate',
-    lesson: {
-      heading: 't stops just BEFORE a character — perfect for surgical deletes',
-      body:
-        't (till) is f\'s careful sibling: tg moves to the character just BEFORE the next g, not onto it. ' +
-        'Pair it with the delete verb: dtg = "delete up to, but not including, the next g". The target ' +
-        'character survives. This is how you trim words without harming what follows. ' +
-        'Your task: the order says "open the iron gate" but the iron gate is rusted shut. Leap to "iron" ' +
-        'with 2w, then delete until the g of "gate" — sparing the g.',
-      demoKeys: '2wdtg',
-    },
-    keysTaught: ['t', 'dt'],
-    startLines: ['open the iron gate'],
-    startCursor: { row: 0, col: 0 },
-    goal: { kind: 'text', lines: ['open the gate'] },
-    par: 5,
-    parSolution: '2wdtg',
-    hints: [
-      'Travel to the doomed word, then delete UP TO (but not including) the first letter of the word you keep.',
-      'Type 2w, then dtg: 2wdtg.',
-      '2w leaps past "the" onto the i of "iron". Now d, t, g: delete till the next g — "iron " vanishes (space and all), and the g of "gate" is spared. "open the gate" remains. Five keys.',
-    ],
-  },
-  {
-    id: 't5-look-back',
-    tier: 5,
-    title: 'Look Back, Knight',
-    lesson: {
-      heading: 'Capital F hunts BACKWARD; ; repeats in the same direction',
-      body:
-        'Capital F is f turned around: Fo leaps backward onto the previous o on the line. (Capital T is ' +
-        'the backward "till".) The repeat keys still serve you: ; repeats the last hunt in its own ' +
-        'direction, , repeats it the opposite way. ' +
-        'Your task: you stand at the end of the wall. Hunt backward to the o of "on" — the first Fo ' +
-        'catches the o of "swords"... no wait, it catches the closer one. Press ; if your first catch ' +
-        'is not the o of "swords".',
-      demoKeys: 'Fo;',
-    },
-    keysTaught: ['F', 'T'],
-    startLines: ['seven swords on the wall'],
-    startCursor: { row: 0, col: 23 },
-    goal: { kind: 'cursor', row: 0, col: 8 },
-    par: 3,
-    parSolution: 'Fo;',
-    hints: [
-      'Hunt backward with the capital twin of f, then repeat the hunt with the semicolon.',
-      'Type Fo then ; — Fo;.',
-      'From the final l of "wall": F then o leaps BACKWARD onto the o of "on" (the nearest o behind you). Press ; to repeat the backward hunt — you land on the o of "swords". Three keys.',
-    ],
-  },
-  {
-    id: 't5-seeking-spell',
-    tier: 5,
-    title: 'Speak the Seeking Spell',
-    lesson: {
-      heading: '/ searches the whole scroll: type the word, press Enter, and leap to it',
-      body:
-        'f hunts on one line; / (slash) hunts the whole file. Press /, type the text you seek (you will ' +
-        'see it appear), then press Enter. The cursor leaps to the next place that text occurs — across ' +
-        'as many lines as needed, wrapping around the end. ' +
-        'Your task: somewhere in the armory inventory lies an "ember" blade. Seek it with /ember and Enter.',
-      demoKeys: '/ember<cr>',
-    },
-    keysTaught: ['/'],
-    startLines: [
-      'the armory holds:',
-      'three iron shields',
-      'one cracked helm',
-      'the ember blade',
-      'two oak staves',
-    ],
-    startCursor: { row: 0, col: 0 },
-    goal: { kind: 'cursor', row: 3, col: 4 },
-    par: 7,
-    parSolution: '/ember<cr>',
-    hints: [
-      'The slash key opens a search across every line — type the word you want, then press Enter.',
-      'Type /ember and press Enter.',
-      'Press / — vim waits for your search text. Type e, m, b, e, r, then press Enter. The cursor leaps to the e of "ember" on the fourth line. Seven keys to cross the whole scroll.',
-    ],
-  },
-  {
-    id: 't5-next-and-next',
-    tier: 5,
-    title: 'Next, and Next Again',
-    lesson: {
-      heading: 'n repeats the last search forward; N repeats it backward',
-      body:
-        'After a / search, vim remembers the term. Press n (next) to leap to the following match, again ' +
-        'and again; capital N walks the matches in reverse. Searches wrap: past the last match, n circles ' +
-        'to the first. ' +
-        'Your task: the vault ledger lists gold three times. Search /gold, then press n once to reach the ' +
-        'SECOND entry.',
-      demoKeys: '/gold<cr>n',
-    },
-    keysTaught: ['n', 'N'],
-    startLines: [
-      'the ledger of the vault:',
-      'gold in the chest',
-      'silver on the shelf',
-      'gold under the floor',
-      'copper in the cup',
-      'gold behind the wall',
-    ],
-    startCursor: { row: 0, col: 0 },
-    goal: { kind: 'cursor', row: 3, col: 0 },
-    par: 7,
-    parSolution: '/gold<cr>n',
-    hints: [
-      'Search once with slash and Enter, then use the single key that hops to the NEXT match.',
-      'Type /gold, press Enter, then press n.',
-      '/gold and Enter lands on the first "gold" (line 2). Press n — the cursor hops to the next match: "gold under the floor". (N would hop backward; n past the last match wraps to the first.) Seven keys.',
-    ],
-  },
-
-  // ════ TIER 6 — Strike the Heart: text objects iw aw i" i( i{ ══════════════
-  {
-    id: 't6-words-heart',
-    tier: 6,
     title: "Strike the Word's Heart",
     lesson: {
       heading: 'ciw changes the word you are INSIDE — no need to stand at its start',
@@ -800,8 +658,8 @@ export const TRIALS: VimTrial[] = [
     ],
   },
   {
-    id: 't6-empty-the-words',
-    tier: 6,
+    id: 't5-empty-the-words',
+    tier: 5,
     title: 'Unsay the Spoken Word',
     lesson: {
       heading: 'di" deletes everything INSIDE the quotes, leaving the quotes standing',
@@ -843,8 +701,8 @@ export const TRIALS: VimTrial[] = [
     ],
   },
   {
-    id: 't6-gut-the-parens',
-    tier: 6,
+    id: 't5-gut-the-parens',
+    tier: 5,
     title: 'Gut the Parentheses',
     lesson: {
       heading: 'di( deletes everything inside the surrounding ( )',
@@ -889,8 +747,8 @@ export const TRIALS: VimTrial[] = [
     ],
   },
   {
-    id: 't6-hollow-the-keep',
-    tier: 6,
+    id: 't5-hollow-the-keep',
+    tier: 5,
     title: 'Hollow the Keep',
     lesson: {
       heading: 'di{ empties a { } block — even across many lines',
@@ -925,8 +783,8 @@ export const TRIALS: VimTrial[] = [
     ],
   },
   {
-    id: 't6-swallow-whole',
-    tier: 6,
+    id: 't5-swallow-whole',
+    tier: 5,
     title: 'Swallow the Word Whole',
     lesson: {
       heading: 'daw deletes a word AND its trailing space — "around word"',
@@ -968,8 +826,8 @@ export const TRIALS: VimTrial[] = [
     ],
   },
   {
-    id: 't6-thrice-cut',
-    tier: 6,
+    id: 't5-thrice-cut',
+    tier: 5,
     title: 'Thrice-Cut',
     lesson: {
       heading: 'A count before dd reaps many lines — 3dd is to dd what 4w was to w',
@@ -999,8 +857,8 @@ export const TRIALS: VimTrial[] = [
     ],
   },
   {
-    id: 't6-mark-then-strike',
-    tier: 6,
+    id: 't5-mark-then-strike',
+    tier: 5,
     title: 'Mark, Then Strike',
     lesson: {
       heading: 'V marks whole lines first, then d strikes them — select, then act',
@@ -1029,6 +887,151 @@ export const TRIALS: VimTrial[] = [
       'V marks the first oath and the stance reads VISUAL LINE. j, then j, extend the mark down over all three oaths. Now d falls on the whole block, and only the final line remains. Four keys — select, then strike.',
     ],
   },
+
+  // ════ TIER 6 — The Hunter's Arts: f F t T ; , / n N ═══════════════════════
+  {
+    id: 't6-hunt-the-rune',
+    tier: 6,
+    title: 'Hunt the Rune',
+    lesson: {
+      heading: 'f + a character jumps ONTO its next occurrence; ; repeats the hunt',
+      body:
+        'f (find) takes one more keypress — the character you seek — and leaps the cursor onto the next ' +
+        'occurrence of it on this line. fv means "find the next v". Wrong one? Press ; (semicolon) to ' +
+        'repeat the same hunt further along, and , (comma) to repeat it backward. ' +
+        'Your task: land on the v of "lava". The first fv finds the v in "over" — press ; to leap onward.',
+      demoKeys: 'fv;',
+    },
+    keysTaught: ['f', ';', ','],
+    startLines: ['leap over the lava pit'],
+    startCursor: { row: 0, col: 0 },
+    goal: { kind: 'cursor', row: 0, col: 16 },
+    par: 3,
+    parSolution: 'fv;',
+    hints: [
+      'Use the find key with the letter you are hunting; if the first catch is the wrong one, repeat the hunt with the semicolon.',
+      'Type fv then ; — fv;.',
+      'f then v leaps onto the v of "over" — the first v on the line, but not yours. Press ; to repeat the hunt: the cursor lands on the v of "lava". Three keys, no counting of columns.',
+    ],
+  },
+  {
+    id: 't6-cut-until',
+    tier: 6,
+    title: 'Cut Until the Gate',
+    lesson: {
+      heading: 't stops just BEFORE a character — perfect for surgical deletes',
+      body:
+        't (till) is f\'s careful sibling: tg moves to the character just BEFORE the next g, not onto it. ' +
+        'Pair it with the delete verb: dtg = "delete up to, but not including, the next g". The target ' +
+        'character survives. This is how you trim words without harming what follows. ' +
+        'Your task: the order says "open the iron gate" but the iron gate is rusted shut. Leap to "iron" ' +
+        'with 2w, then delete until the g of "gate" — sparing the g.',
+      demoKeys: '2wdtg',
+    },
+    keysTaught: ['t', 'dt'],
+    startLines: ['open the iron gate'],
+    startCursor: { row: 0, col: 0 },
+    goal: { kind: 'text', lines: ['open the gate'] },
+    par: 5,
+    parSolution: '2wdtg',
+    hints: [
+      'Travel to the doomed word, then delete UP TO (but not including) the first letter of the word you keep.',
+      'Type 2w, then dtg: 2wdtg.',
+      '2w leaps past "the" onto the i of "iron". Now d, t, g: delete till the next g — "iron " vanishes (space and all), and the g of "gate" is spared. "open the gate" remains. Five keys.',
+    ],
+  },
+  {
+    id: 't6-look-back',
+    tier: 6,
+    title: 'Look Back, Knight',
+    lesson: {
+      heading: 'Capital F hunts BACKWARD; ; repeats in the same direction',
+      body:
+        'Capital F is f turned around: Fo leaps backward onto the previous o on the line. (Capital T is ' +
+        'the backward "till".) The repeat keys still serve you: ; repeats the last hunt in its own ' +
+        'direction, , repeats it the opposite way. ' +
+        'Your task: you stand at the end of the wall. Hunt backward to the o of "on" — the first Fo ' +
+        'catches the o of "swords"... no wait, it catches the closer one. Press ; if your first catch ' +
+        'is not the o of "swords".',
+      demoKeys: 'Fo;',
+    },
+    keysTaught: ['F', 'T'],
+    startLines: ['seven swords on the wall'],
+    startCursor: { row: 0, col: 23 },
+    goal: { kind: 'cursor', row: 0, col: 8 },
+    par: 3,
+    parSolution: 'Fo;',
+    hints: [
+      'Hunt backward with the capital twin of f, then repeat the hunt with the semicolon.',
+      'Type Fo then ; — Fo;.',
+      'From the final l of "wall": F then o leaps BACKWARD onto the o of "on" (the nearest o behind you). Press ; to repeat the backward hunt — you land on the o of "swords". Three keys.',
+    ],
+  },
+  {
+    id: 't6-seeking-spell',
+    tier: 6,
+    title: 'Speak the Seeking Spell',
+    lesson: {
+      heading: '/ searches the whole scroll: type the word, press Enter, and leap to it',
+      body:
+        'f hunts on one line; / (slash) hunts the whole file. Press /, type the text you seek (you will ' +
+        'see it appear), then press Enter. The cursor leaps to the next place that text occurs — across ' +
+        'as many lines as needed, wrapping around the end. ' +
+        'Your task: somewhere in the armory inventory lies an "ember" blade. Seek it with /ember and Enter.',
+      demoKeys: '/ember<cr>',
+    },
+    keysTaught: ['/'],
+    startLines: [
+      'the armory holds:',
+      'three iron shields',
+      'one cracked helm',
+      'the ember blade',
+      'two oak staves',
+    ],
+    startCursor: { row: 0, col: 0 },
+    goal: { kind: 'cursor', row: 3, col: 4 },
+    par: 7,
+    parSolution: '/ember<cr>',
+    hints: [
+      'The slash key opens a search across every line — type the word you want, then press Enter.',
+      'Type /ember and press Enter.',
+      'Press / — vim waits for your search text. Type e, m, b, e, r, then press Enter. The cursor leaps to the e of "ember" on the fourth line. Seven keys to cross the whole scroll.',
+    ],
+  },
+  {
+    id: 't6-next-and-next',
+    tier: 6,
+    title: 'Next, and Next Again',
+    lesson: {
+      heading: 'n repeats the last search forward; N repeats it backward',
+      body:
+        'After a / search, vim remembers the term. Press n (next) to leap to the following match, again ' +
+        'and again; capital N walks the matches in reverse. Searches wrap: past the last match, n circles ' +
+        'to the first. ' +
+        'Your task: the vault ledger lists gold three times. Search /gold, then press n once to reach the ' +
+        'SECOND entry.',
+      demoKeys: '/gold<cr>n',
+    },
+    keysTaught: ['n', 'N'],
+    startLines: [
+      'the ledger of the vault:',
+      'gold in the chest',
+      'silver on the shelf',
+      'gold under the floor',
+      'copper in the cup',
+      'gold behind the wall',
+    ],
+    startCursor: { row: 0, col: 0 },
+    goal: { kind: 'cursor', row: 3, col: 0 },
+    par: 7,
+    parSolution: '/gold<cr>n',
+    hints: [
+      'Search once with slash and Enter, then use the single key that hops to the NEXT match.',
+      'Type /gold, press Enter, then press n.',
+      '/gold and Enter lands on the first "gold" (line 2). Press n — the cursor hops to the next match: "gold under the floor". (N would hop backward; n past the last match wraps to the first.) Seven keys.',
+    ],
+  },
+
   {
     id: 't6-grand-trial',
     tier: 6,
@@ -1077,7 +1080,7 @@ export const TRIALS: VimTrial[] = [
     ],
   },
 
-  // ── Tier 7 · Advanced Arts ───────────────────────────────────────────────
+  // ════ TIER 7 — Advanced Arts: { } ip ap, word-change clarity ══════════════
   {
     id: 't7-choose-your-cut',
     tier: 7,
@@ -1194,7 +1197,7 @@ export const TRIALS: VimTrial[] = [
     ],
   },
 
-  // ── Tier 8 · The Macro Arts ──────────────────────────────────────────────
+  // ════ TIER 8 — The Macro Arts: q @ @@ ═════════════════════════════════════
   {
     id: 't8-record-the-art',
     tier: 8,

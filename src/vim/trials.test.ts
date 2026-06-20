@@ -129,10 +129,10 @@ describe('TRIALS teaching shape', () => {
     }
   });
 
-  it('tier 6 includes scrolls of six lines or more', () => {
-    const tier6 = TRIALS.filter((t) => t.tier === 6);
-    expect(Math.max(...tier6.map((t) => t.startLines.length))).toBeGreaterThanOrEqual(8);
-    for (const t of tier6) expect(t.startLines.length, t.id).toBeGreaterThanOrEqual(5);
+  it('tier 5 includes scrolls of six lines or more', () => {
+    const tier5 = TRIALS.filter((t) => t.tier === 5);
+    expect(Math.max(...tier5.map((t) => t.startLines.length))).toBeGreaterThanOrEqual(6);
+    for (const t of tier5) expect(t.startLines.length, t.id).toBeGreaterThanOrEqual(5);
   });
 
   it('the curriculum covers the canonical key groups in order', () => {
@@ -145,10 +145,10 @@ describe('TRIALS teaching shape', () => {
     expect(taughtAt('p')).toBe(3);
     expect(taughtAt('i')).toBe(4);
     expect(taughtAt('c')).toBe(4);
-    expect(taughtAt('f')).toBe(5);
-    expect(taughtAt('/')).toBe(5);
-    expect(taughtAt('iw')).toBe(6);
-    expect(taughtAt('i{')).toBe(6);
+    expect(taughtAt('iw')).toBe(5);
+    expect(taughtAt('i{')).toBe(5);
+    expect(taughtAt('f')).toBe(6);
+    expect(taughtAt('/')).toBe(6);
   });
 });
 

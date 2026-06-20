@@ -38,8 +38,8 @@ const TIER_NAMES: Record<number, string> = {
   2: 'Strides of the Knight · w b e 0 ^ $ gg G, counts',
   3: 'The Cutting Arts · d y p',
   4: "The Scribe's Arts · i a o, c, esc",
-  5: "The Hunter's Arts · f t ; , / n",
-  6: 'Strike the Heart · text objects iw i" i( i{ · 3dd · V',
+  5: 'Strike the Heart · text objects iw i" i( i{ · 3dd · V',
+  6: "The Hunter's Arts · f t ; , / n",
   7: 'Advanced Arts · word-change clarity · { } ip ap',
   8: 'The Macro Arts · q @ @@',
 };

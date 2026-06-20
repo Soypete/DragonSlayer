@@ -108,4 +108,5 @@ phrases or notation in `keysTaught` · break second person ("the player", "one")
 names in trial prose.
 
 When in doubt, open `src/vim/trials.ts` and copy the shape of an existing
-tier-1–6 trial — they are the canonical reference for voice and structure.
+early-tier trial — the tier-1 through tier-5 cards are the canonical reference
+for voice and structure.
