@@ -363,7 +363,7 @@ function applyLineOperator(b: VimBuffer, op: Op, rawR1: number, rawR2: number): 
 
 // ── Motions ──────────────────────────────────────────────────────────────────
 
-const CHAR_MOTIONS = new Set(['h', 'j', 'k', 'l', 'w', 'b', 'e', '0', '^', '$', 'G']);
+const CHAR_MOTIONS = new Set(['h', 'j', 'k', 'l', 'w', 'b', 'e', '0', '^', '$', 'G', '{', '}']);
 
 function normalMotionCursor(b: VimBuffer, m: string, count: number, explicit: boolean): VimCursor {
   const { lines, cursor } = b;
@@ -411,6 +411,11 @@ function normalMotionCursor(b: VimBuffer, m: string, count: number, explicit: bo
     case 'gg': {
       const row = explicit ? clamp(count - 1, 0, lastRow) : 0;
       return { row, col: firstNonBlank(lines[row]) };
+    }
+    case '}':
+    case '{': {
+      const row = paragraphTarget(lines, cursor.row, m === '}' ? 1 : -1, count);
+      return { row, col: clampCol(lines[row], cursor.col) };
     }
   }
   return cursor;
@@ -492,6 +497,17 @@ function execMotion(b: VimBuffer, pending: Pending, m: string): VimKeyResult {
   const op = pending.op;
   const { cursor, lines } = b;
   const lastRow = lines.length - 1;
+
+  if (op && (m === '{' || m === '}')) {
+    // Paragraph motions act line-wise under an operator (d}, y{, c}). vi excludes
+    // the blank boundary line itself, so step one line back toward the cursor —
+    // except at the file edge, where the boundary is content, not a blank.
+    const dir = m === '}' ? 1 : -1;
+    let target = paragraphTarget(lines, cursor.row, dir, count);
+    if (isBlankLine(lines[target]) && target !== cursor.row) target -= dir;
+    const [lo, hi] = target < cursor.row ? [target, cursor.row] : [cursor.row, target];
+    return applyLineOperator(b, op, lo, hi);
+  }
 
   if (op && (m === 'j' || m === 'k' || m === 'G' || m === 'gg')) {
     // Line-wise operator motions.
@@ -642,6 +658,52 @@ function pairObjectSpan(
   return { start: innerStart, end: closePos };
 }
 
+/** A paragraph boundary is a blank (empty / all-whitespace) line. */
+function isBlankLine(line: string): boolean {
+  return line.trim().length === 0;
+}
+
+/**
+ * Resolve `count` paragraph jumps from `row` in `dir` (+1 for `}`, -1 for `{`).
+ * Like vi: stop on the next blank line, or the first/last line at the file's edge.
+ */
+function paragraphTarget(lines: string[], row: number, dir: 1 | -1, count: number): number {
+  let r = row;
+  const lastRow = lines.length - 1;
+  for (let n = 0; n < count; n++) {
+    let next = r + dir;
+    while (next > 0 && next < lastRow && !isBlankLine(lines[next])) next += dir;
+    r = clamp(next, 0, lastRow);
+    if (r === 0 || r === lastRow) break; // edge reached; further jumps cannot move
+  }
+  return r;
+}
+
+/**
+ * inner/around paragraph: the run of non-blank lines the cursor sits in (a run of
+ * blank lines if it sits on one). `ap` also swallows the blank lines that follow
+ * (or precede, at the file's end); `ip` takes the run alone.
+ */
+function paragraphObjectSpan(
+  lines: string[],
+  cur: VimCursor,
+  around: boolean,
+): { startRow: number; endRow: number } | null {
+  const lastRow = lines.length - 1;
+  const onBlank = isBlankLine(lines[cur.row]);
+  let s = cur.row;
+  let e = cur.row;
+  while (s > 0 && isBlankLine(lines[s - 1]) === onBlank) s--;
+  while (e < lastRow && isBlankLine(lines[e + 1]) === onBlank) e++;
+  if (around && !onBlank) {
+    let e2 = e;
+    while (e2 < lastRow && isBlankLine(lines[e2 + 1])) e2++;
+    if (e2 > e) e = e2;
+    else while (s > 0 && isBlankLine(lines[s - 1])) s--; // no trailing blanks: take the leading ones
+  }
+  return { startRow: s, endRow: e };
+}
+
 function execTextObject(b: VimBuffer, pending: Pending, objChar: string): VimKeyResult {
   const op = pending.op as Op;
   const around = pending.obj === 'a';
@@ -653,7 +715,12 @@ function execTextObject(b: VimBuffer, pending: Pending, objChar: string): VimKey
     span = pairObjectSpan(b.lines, b.cursor, '(', ')', around);
   else if (objChar === '{' || objChar === '}' || objChar === 'B')
     span = pairObjectSpan(b.lines, b.cursor, '{', '}', around);
-  else return abortPending(b);
+  else if (objChar === 'p') {
+    // Paragraph objects are line-wise (dip/dap/cip/yap), like dd's register.
+    const para = paragraphObjectSpan(b.lines, b.cursor, around);
+    if (!para) return done(b, {});
+    return applyLineOperator(b, op, para.startRow, para.endRow);
+  } else return abortPending(b);
   if (!span) return done(b, {}); // recognized object, nothing to seize
   return applyCharOperator(b, op, span.start, span.end);
 }
@@ -844,6 +911,12 @@ function normalKey(b: VimBuffer, key: string): VimKeyResult {
       return execSearchRepeat(b, true);
     case 'N':
       return execSearchRepeat(b, false);
+    case 'V':
+      // Enter visual-line, anchoring the current line.
+      return {
+        buffer: { ...b, mode: 'visual-line', visualStart: { ...b.cursor }, pendingCount: null },
+        handled: true,
+      };
   }
   return unhandled(b);
 }
@@ -932,6 +1005,10 @@ export function createVimBuffer(lines: string[], cursor?: VimCursor): VimBuffer 
     searchTerm: null,
     searchDraft: '',
     lastFind: null,
+    visualStart: null,
+    macros: {},
+    recording: null,
+    lastMacro: null,
   };
 }
 
@@ -941,15 +1018,155 @@ export function createVimBuffer(lines: string[], cursor?: VimCursor): VimBuffer 
  * Keys outside the taught subset return { handled: false } with the text and
  * cursor untouched (an in-flight operator/count is aborted, as vi would).
  */
-export function vimKey(buffer: VimBuffer, key: string): VimKeyResult {
+/**
+ * Visual-line mode: V anchors a line, motions grow/shrink the selection, and
+ * d/y/c strike the whole span line-wise. The inverse of normal mode's
+ * "verb then motion" — here you select first, then act.
+ */
+function visualLineKey(b: VimBuffer, key: string): VimKeyResult {
+  const lastRow = b.lines.length - 1;
+  const anchor = b.visualStart ?? b.cursor;
+
+  const leaveTo = (patch: Partial<VimBuffer>): VimKeyResult =>
+    done(b, { mode: 'normal', visualStart: null, pendingCount: null, ...patch });
+
+  if (key === '<esc>') return leaveTo({}); // cancel — buffer untouched
+
+  // Count digits grow the next motion ('0' alone is the first-column motion).
+  if (/^[0-9]$/.test(key) && !(key === '0' && b.pendingCount === null)) {
+    const next = Math.min((b.pendingCount ?? 0) * 10 + Number(key), MAX_COUNT);
+    return { buffer: { ...b, pendingCount: next }, handled: true };
+  }
+
+  const count = b.pendingCount ?? 1;
+  const explicit = b.pendingCount !== null;
+  const moveTo = (row: number): VimKeyResult => {
+    const r = clamp(row, 0, lastRow);
+    return { buffer: { ...b, cursor: { row: r, col: clampCol(b.lines[r], b.cursor.col) }, pendingCount: null }, handled: true };
+  };
+
+  switch (key) {
+    case 'j':
+      return moveTo(b.cursor.row + count);
+    case 'k':
+      return moveTo(b.cursor.row - count);
+    case 'G':
+      return moveTo(explicit ? count - 1 : lastRow);
+    case '0':
+    case '^':
+    case '$':
+      return { buffer: b, handled: true }; // column motions are inert line-wise
+    case '}':
+      return moveTo(paragraphTarget(b.lines, b.cursor.row, 1, count));
+    case '{':
+      return moveTo(paragraphTarget(b.lines, b.cursor.row, -1, count));
+  }
+
+  if (b.pendingOperator === 'g') {
+    // The twin of a waiting g: gg jumps to the first line (or Ngg).
+    if (key === 'g') {
+      const r = clamp(explicit ? count - 1 : 0, 0, lastRow);
+      return { buffer: { ...b, cursor: { row: r, col: clampCol(b.lines[r], b.cursor.col) }, pendingOperator: null, pendingCount: null }, handled: true };
+    }
+    return { buffer: { ...b, pendingOperator: null }, handled: true }; // gx — abandon the g
+  }
+  if (key === 'g') {
+    // A lone g waits for its twin.
+    return { buffer: { ...b, pendingOperator: 'g' }, handled: true };
+  }
+
+  // Operators act on the whole selected span, then drop back to normal.
+  if (key === 'd' || key === 'x' || key === 'y' || key === 'c') {
+    const op: Op = key === 'x' ? 'd' : (key as Op);
+    const res = applyLineOperator({ ...b, visualStart: null }, op, anchor.row, b.cursor.row);
+    const mode = op === 'c' ? 'insert' : 'normal';
+    return { buffer: { ...res.buffer, mode, visualStart: null, pendingCount: null }, handled: true };
+  }
+
+  return { buffer: b, handled: true }; // swallow stray keys; V holds until esc or a verb
+}
+
+/** Route one key to the mode-specific handler (no macro/recording logic). */
+function dispatchKey(buffer: VimBuffer, key: string): VimKeyResult {
   switch (buffer.mode) {
     case 'insert':
       return insertKey(buffer, key);
     case 'search':
       return searchKey(buffer, key);
+    case 'visual-line':
+      return visualLineKey(buffer, key);
     default:
       return normalKey(buffer, key);
   }
+}
+
+const MACRO_REGISTER = /^[a-z]$/;
+/** Guard rail: a macro replay can never feed more keys than this through the engine. */
+const MAX_MACRO_KEYS = 10000;
+
+/**
+ * Replay a recorded key sequence by feeding its keys, one at a time, through the
+ * same pure engine — so `@a` is exactly "type what was recorded". Counts replay
+ * the whole sequence `count` times. A budget guards against runaway recursion.
+ */
+function playMacro(b: VimBuffer, register: string, count: number): VimKeyResult {
+  const keys = b.macros[register];
+  if (!keys || keys.length === 0) return done(b, { lastMacro: register });
+  let buf: VimBuffer = { ...b, lastMacro: register };
+  let budget = MAX_MACRO_KEYS;
+  for (let n = 0; n < count; n++) {
+    for (const k of keys) {
+      if (budget-- <= 0) return { buffer: buf, handled: true }; // fail safe, never loop forever
+      buf = vimKey(buf, k).buffer;
+    }
+  }
+  return { buffer: buf, handled: true };
+}
+
+export function vimKey(buffer: VimBuffer, key: string): VimKeyResult {
+  // ── Macro control (normal mode only; q/@ are literal text while inserting) ──
+  if (buffer.mode === 'normal') {
+    const pending = buffer.pendingOperator;
+    const recording = buffer.recording;
+
+    // `q` toggles recording. While recording, a bare q stops and stores the take.
+    if (key === 'q' && pending === null) {
+      if (recording) {
+        const macros = { ...buffer.macros, [recording.register]: recording.keys };
+        return { buffer: { ...buffer, macros, recording: null }, handled: true };
+      }
+      // Await the register rune: stash a marker in pendingOperator.
+      return { buffer: { ...buffer, pendingOperator: 'q' }, handled: true };
+    }
+    if (pending === 'q') {
+      if (MACRO_REGISTER.test(key)) {
+        return { buffer: { ...buffer, pendingOperator: null, recording: { register: key, keys: [] } }, handled: true };
+      }
+      return { buffer: { ...buffer, pendingOperator: null }, handled: true }; // q then junk: abandon
+    }
+
+    // `@` replays a register; `@@` repeats the last. Honors a count (3@a).
+    if (key === '@' && pending === null) {
+      return { buffer: { ...buffer, pendingOperator: '@' }, handled: true };
+    }
+    if (pending === '@') {
+      const count = buffer.pendingCount ?? 1;
+      const reg = key === '@' ? buffer.lastMacro : MACRO_REGISTER.test(key) ? key : null;
+      const cleared: VimBuffer = { ...buffer, pendingOperator: null, pendingCount: null };
+      if (!reg) return { buffer: cleared, handled: true };
+      return playMacro(cleared, reg, count);
+    }
+  }
+
+  const result = dispatchKey(buffer, key);
+
+  // Capture the key into the active recording — but never the `q` that stops it
+  // (handled above) and never while replaying past the engine entry.
+  if (buffer.recording && result.buffer.recording) {
+    const keys = [...result.buffer.recording.keys, key];
+    return { buffer: { ...result.buffer, recording: { ...result.buffer.recording, keys } }, handled: result.handled };
+  }
+  return result;
 }
 
 /** Has the knight fulfilled the trial's demand? */

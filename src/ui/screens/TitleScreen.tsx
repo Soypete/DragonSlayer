@@ -37,8 +37,8 @@ export function TitleScreen({
   const [cursor, setCursor] = useState(0);
 
   useRealmInput((input, key) => {
-    if (key.upArrow) setCursor((c) => (c + choices.length - 1) % choices.length);
-    else if (key.downArrow) setCursor((c) => (c + 1) % choices.length);
+    if (key.upArrow || input === 'k') setCursor((c) => (c + choices.length - 1) % choices.length);
+    else if (key.downArrow || input === 'j') setCursor((c) => (c + 1) % choices.length);
     else if (key.return || input === ' ') {
       const choice = choices[cursor];
       if (choice === 'Ride to another realm') onSwitchRealm?.();

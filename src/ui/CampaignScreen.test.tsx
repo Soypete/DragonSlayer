@@ -83,6 +83,16 @@ describe('the Hall of Banners (campaign picker)', () => {
     unmount();
   });
 
+  it('roams the hall with j/k as well as the arrows', async () => {
+    const { stdin, hooks, unmount } = await openHall([entry('/realm/keep')]);
+    stdin.write('j'); // vim-down: suggested → keep
+    await settle();
+    stdin.write('\r');
+    await settle();
+    expect(hooks.chosen).toEqual(['/realm/keep']);
+    unmount();
+  });
+
   it('rides into the suggested realm without any saves at all', async () => {
     const { stdin, hooks, unmount } = await openHall([]);
     stdin.write('\r');

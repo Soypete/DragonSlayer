@@ -333,6 +333,23 @@ describe('tier 3 — delete, yank, put', () => {
     expect(run(['a', 'b'], '5dd').lines).toEqual(['']);
   });
 
+  it('2cc changes a run of lines and opens insert', () => {
+    const b = run(['a', 'b', 'c', 'd'], '2ccnew<esc>');
+    expect(b.lines).toEqual(['new', 'c', 'd']);
+    expect(b.mode).toBe('normal');
+  });
+
+  it('3yy yanks three lines line-wise; p pastes the block', () => {
+    const b = run(['a', 'b', 'c', 'd'], '3yy');
+    expect(b.register).toEqual({ text: ['a', 'b', 'c'], linewise: true });
+    expect(run(['a', 'b', 'c', 'd'], '3yyGp').lines).toEqual(['a', 'b', 'c', 'd', 'a', 'b', 'c']);
+  });
+
+  it('2cc clamps past the last line without throwing', () => {
+    const b = run(['a', 'b'], '5ccgone<esc>');
+    expect(b.lines).toEqual(['gone']);
+  });
+
   it('dj reaps this line and the next; dj on the last line whiffs', () => {
     expect(run(['a', 'b', 'c'], 'dj').lines).toEqual(['c']);
     expect(run(['a', 'b', 'c'], 'dj', { row: 2, col: 0 }).lines).toEqual(['a', 'b', 'c']);
@@ -736,7 +753,7 @@ describe('pending state and the unhandled', () => {
 
   it('an unknown key in normal mode is unhandled and changes nothing', () => {
     const b = createVimBuffer(['ab']);
-    const r = vimKey(b, 'q');
+    const r = vimKey(b, 'Q');
     expect(r.handled).toBe(false);
     expect(r.buffer).toBe(b); // the very same scroll
   });
@@ -851,5 +868,261 @@ describe('integration — whole sword forms', () => {
   it('change inside quotes after a search', () => {
     const b = run(['ale "flat" ale', 'mead "fizzy" mead'], '/fizzy<cr>ci"flat<esc>');
     expect(b.lines).toEqual(['ale "flat" ale', 'mead "flat" mead']);
+  });
+});
+
+describe('paragraph motions { } and objects ip / ap', () => {
+  // A scroll of three paragraphs separated by blank lines.
+  const scroll = [
+    'first line of one', // 0
+    'second line of one', // 1
+    '', // 2
+    'lone middle stanza', // 3
+    '', // 4
+    'final paragraph here', // 5
+    'and its second line', // 6
+  ];
+
+  it('} jumps forward to the next blank-line boundary', () => {
+    const b = run(scroll, '}');
+    expect(b.cursor.row).toBe(2);
+  });
+
+  it('a second } leaps to the following boundary', () => {
+    const b = run(scroll, '}}');
+    expect(b.cursor.row).toBe(4);
+  });
+
+  it('{ jumps backward to the previous boundary', () => {
+    const b = run(scroll, '{', { row: 5, col: 0 });
+    expect(b.cursor.row).toBe(4);
+  });
+
+  it('} honors a count', () => {
+    const b = run(scroll, '2}');
+    expect(b.cursor.row).toBe(4);
+  });
+
+  it('} at the file edge lands on the last line and stops', () => {
+    const b = run(scroll, '5}');
+    expect(b.cursor.row).toBe(6);
+  });
+
+  it('{ at the top lands on the first line', () => {
+    const b = run(scroll, '{', { row: 1, col: 0 });
+    expect(b.cursor.row).toBe(0);
+  });
+
+  it('d} deletes line-wise from the cursor to the boundary', () => {
+    const b = run(scroll, 'd}');
+    expect(b.lines).toEqual(['', 'lone middle stanza', '', 'final paragraph here', 'and its second line']);
+    expect(b.register?.linewise).toBe(true);
+  });
+
+  it('d{ deletes backward line-wise to (not including) the blank boundary', () => {
+    // From the last line, { reaches the blank above the final stanza; the
+    // operator excludes that blank and reaps the stanza (rows 5–6) upward.
+    const b = run(scroll, 'd{', { row: 6, col: 0 });
+    expect(b.lines).toEqual(['first line of one', 'second line of one', '', 'lone middle stanza', '']);
+    expect(b.register?.linewise).toBe(true);
+  });
+
+  it('dip deletes the inner paragraph, leaving its blank neighbors', () => {
+    const b = run(scroll, 'dip');
+    expect(b.lines).toEqual(['', 'lone middle stanza', '', 'final paragraph here', 'and its second line']);
+    expect(b.register?.linewise).toBe(true);
+  });
+
+  it('dap deletes the paragraph AND a trailing blank line', () => {
+    const b = run(scroll, 'dap');
+    expect(b.lines).toEqual(['lone middle stanza', '', 'final paragraph here', 'and its second line']);
+  });
+
+  it('dap on the last paragraph swallows the preceding blank line', () => {
+    const b = run(scroll, 'dap', { row: 5, col: 0 });
+    expect(b.lines).toEqual(['first line of one', 'second line of one', '', 'lone middle stanza']);
+  });
+
+  it('cip empties the paragraph and opens insert', () => {
+    const b = run(scroll, 'ciprewritten<esc>', { row: 3, col: 0 });
+    expect(b.lines).toEqual([
+      'first line of one',
+      'second line of one',
+      '',
+      'rewritten',
+      '',
+      'final paragraph here',
+      'and its second line',
+    ]);
+    expect(b.mode).toBe('normal');
+  });
+
+  it('yap then p duplicates the paragraph with its blank', () => {
+    const b = run(scroll, 'yapGp', { row: 0, col: 0 });
+    expect(b.lines.slice(0, 3)).toEqual(['first line of one', 'second line of one', '']);
+  });
+
+  it('di{ still seizes a brace pair — the object form is unshadowed by the motion', () => {
+    const b = run(['guard { gold } here'], 'di{', { row: 0, col: 6 });
+    expect(b.lines).toEqual(['guard {} here']);
+  });
+});
+
+describe('visual-line mode (V, linewise select, d/y/c)', () => {
+  it('V enters visual-line and anchors the current line', () => {
+    const b = run(['a', 'b', 'c'], 'V', { row: 1, col: 0 });
+    expect(b.mode).toBe('visual-line');
+    expect(b.visualStart).toEqual({ row: 1, col: 0 });
+  });
+
+  it('Vjjd deletes the three selected lines, back to normal', () => {
+    const b = run(['a', 'b', 'c', 'd', 'e'], 'Vjjd');
+    expect(b.lines).toEqual(['d', 'e']);
+    expect(b.mode).toBe('normal');
+    expect(b.visualStart).toBeNull();
+    expect(b.register).toEqual({ text: ['a', 'b', 'c'], linewise: true });
+  });
+
+  it('Vjy yanks the span line-wise; p pastes it', () => {
+    const b = run(['a', 'b', 'c'], 'Vjy');
+    expect(b.register).toEqual({ text: ['a', 'b'], linewise: true });
+    expect(b.mode).toBe('normal');
+    expect(run(['a', 'b', 'c'], 'VjyGp').lines).toEqual(['a', 'b', 'c', 'a', 'b']);
+  });
+
+  it('Vjc clears the span and opens insert', () => {
+    const b = run(['a', 'b', 'c', 'd'], 'Vjcnew<esc>');
+    expect(b.lines).toEqual(['new', 'c', 'd']);
+    expect(b.mode).toBe('normal');
+  });
+
+  it('selection grows upward too (k), order-independent', () => {
+    const b = run(['a', 'b', 'c', 'd'], 'Vkd', { row: 2, col: 0 });
+    expect(b.lines).toEqual(['a', 'd']);
+  });
+
+  it('a count drives the motion (V2jd)', () => {
+    const b = run(['a', 'b', 'c', 'd', 'e'], 'V2jd');
+    expect(b.lines).toEqual(['d', 'e']);
+  });
+
+  it('VGd sweeps to the last line; Vggd to the first', () => {
+    expect(run(['a', 'b', 'c'], 'VGd').lines).toEqual(['']);
+    expect(run(['a', 'b', 'c'], 'Vggd', { row: 2, col: 0 }).lines).toEqual(['']);
+  });
+
+  it('x is a synonym for d on the selection — it deletes line-wise into the register', () => {
+    const b = run(['a', 'b', 'c'], 'Vjx');
+    expect(b.lines).toEqual(['c']);
+    expect(b.register).toEqual({ text: ['a', 'b'], linewise: true });
+    expect(b.mode).toBe('normal');
+  });
+
+  it('<esc> cancels visual-line and leaves the buffer untouched', () => {
+    const b = run(['a', 'b', 'c'], 'Vj<esc>');
+    expect(b.mode).toBe('normal');
+    expect(b.visualStart).toBeNull();
+    expect(b.lines).toEqual(['a', 'b', 'c']);
+  });
+
+  it('a single selected line deletes just that line', () => {
+    expect(run(['a', 'b', 'c'], 'Vd', { row: 1, col: 0 }).lines).toEqual(['a', 'c']);
+  });
+
+  it('motions clamp at the file edges without escaping the buffer', () => {
+    const b = run(['a', 'b'], 'V9jd');
+    expect(b.lines).toEqual(['']);
+  });
+});
+
+describe('macros — record (q) and replay (@, @@)', () => {
+  const scroll = ['foo one', 'bar two', 'baz three', 'qux four'];
+
+  it('q{a-z}…q records the keys between into that register', () => {
+    const b = run(scroll, 'qadwjq');
+    expect(b.macros.a).toEqual(['d', 'w', 'j']);
+    expect(b.recording).toBeNull(); // recording stopped
+    expect(b.lines).toEqual(['one', 'bar two', 'baz three', 'qux four']); // the take also ran live
+  });
+
+  it('@a replays the recorded take once', () => {
+    const b = run(scroll, 'qadwjq@a');
+    expect(b.lines).toEqual(['one', 'two', 'baz three', 'qux four']);
+  });
+
+  it('a count repeats the macro (3@a)', () => {
+    const b = run(scroll, 'qadwjq3@a');
+    expect(b.lines).toEqual(['one', 'two', 'three', 'four']);
+  });
+
+  it('@@ repeats the last-played macro', () => {
+    const b = run(scroll, 'qadwjq@a@@');
+    expect(b.lines).toEqual(['one', 'two', 'three', 'qux four']);
+  });
+
+  it('recording captures mode switches faithfully (insert macro)', () => {
+    const b = run(['alpha', 'beta', 'gamma'], 'qzA!<esc>jq');
+    expect(b.macros.z).toEqual(['A', '!', '<esc>', 'j']);
+    expect(b.lines).toEqual(['alpha!', 'beta', 'gamma']);
+  });
+
+  it('an insert macro replays down a column', () => {
+    const b = run(['alpha', 'beta', 'gamma'], 'qzA!<esc>jq@z@z');
+    expect(b.lines).toEqual(['alpha!', 'beta!', 'gamma!']);
+  });
+
+  it('replaying an empty / unset register is a harmless no-op', () => {
+    const b = run(scroll, '@a');
+    expect(b.lines).toEqual(scroll);
+    const empty = run(scroll, 'qaq@a'); // recorded nothing
+    expect(empty.macros.a).toEqual([]);
+    expect(empty.lines).toEqual(scroll);
+  });
+
+  it('@@ with no prior macro does nothing', () => {
+    const b = run(scroll, '@@');
+    expect(b.lines).toEqual(scroll);
+  });
+
+  it('q is literal text inside insert mode, not a recording toggle', () => {
+    const b = run(['x'], 'aq<esc>');
+    expect(b.lines).toEqual(['xq']);
+    expect(b.recording).toBeNull();
+  });
+
+  it('distinct registers hold distinct takes', () => {
+    const b = run(scroll, 'qaxqqbjq');
+    expect(b.macros.a).toEqual(['x']);
+    expect(b.macros.b).toEqual(['j']);
+  });
+
+  it('q does not start recording while an operator is pending (dq is not a record)', () => {
+    // After d, q must serve the operator path, never toggle recording.
+    const b = run(['hail and well met'], 'dq');
+    expect(b.recording).toBeNull();
+    expect(b.macros.q).toBeUndefined();
+  });
+
+  it('replaying any register — even an empty one — arms @@ to repeat it', () => {
+    // @b on an empty register is a no-op edit but still sets lastMacro, so a
+    // following @@ repeats b (here that means: still nothing changes, but the
+    // repeat must target b, not throw or target nothing).
+    const armed = run(scroll, '@b');
+    expect(armed.lastMacro).toBe('b');
+    // A real macro in a, then @@ after @b would repeat b (the last played), not a.
+    const seq = run(['ax', 'bx', 'cx'], 'qa xq@b@@');
+    expect(seq.lastMacro).toBe('b'); // @b was the last @ played, @@ repeats it
+  });
+
+  it('@ followed by a non-register key is handled and changes nothing', () => {
+    const b = run(scroll, '@1');
+    expect(b.lines).toEqual(scroll);
+    // The @ awaits a register; a stray key after it is still consumed (handled),
+    // clearing the pending @ rather than falling through as unhandled.
+    const afterAt = vimKey(createVimBuffer(scroll), '@').buffer;
+    expect(afterAt.pendingOperator).toBe('@');
+    const stray = vimKey(afterAt, '1');
+    expect(stray.handled).toBe(true);
+    expect(stray.buffer.pendingOperator).toBeNull();
   });
 });

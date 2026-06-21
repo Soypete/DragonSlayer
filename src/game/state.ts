@@ -27,21 +27,30 @@ const XP_PER_COVERAGE_POINT = 15;
 // ── Persistence ──────────────────────────────────────────────────────────────
 
 /**
+ * The home under which the `.gme` vault lives. Defaults to the OS home; tests
+ * pass an explicit root so each runs in its own sandbox without touching the
+ * process-global $HOME (which would leak between suites sharing a process).
+ */
+function vaultHome(home?: string): string {
+  return home ?? homedir();
+}
+
+/**
  * Where this repo's chronicle is kept:
  * `~/.gme/saves/<sha1-of-abs-repo-path>.json`.
  */
-export function savePath(repoPath: string): string {
+export function savePath(repoPath: string, home?: string): string {
   const absPath = resolve(repoPath);
   const sigil = createHash('sha1').update(absPath).digest('hex');
-  return join(homedir(), '.gme', 'saves', `${sigil}.json`);
+  return join(vaultHome(home), '.gme', 'saves', `${sigil}.json`);
 }
 
 /**
  * Unseal the chronicle for a repo. Returns null when no save exists or the
  * scroll is corrupted/foreign — a fresh campaign should begin instead.
  */
-export function loadSave(repoPath: string): SaveGame | null {
-  const path = savePath(repoPath);
+export function loadSave(repoPath: string, home?: string): SaveGame | null {
+  const path = savePath(repoPath, home);
   if (!existsSync(path)) return null;
   try {
     const raw = readFileSync(path, 'utf8');
@@ -54,8 +63,8 @@ export function loadSave(repoPath: string): SaveGame | null {
 }
 
 /** Seal the chronicle to disk (mkdir -p on the saves vault). */
-export function writeSave(save: SaveGame): void {
-  const path = savePath(save.repoPath);
+export function writeSave(save: SaveGame, home?: string): void {
+  const path = savePath(save.repoPath, home);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(save, null, 2), 'utf8');
 }
@@ -64,8 +73,8 @@ export function writeSave(save: SaveGame): void {
  * Open the whole vault: every legible chronicle in `~/.gme/saves`.
  * Corrupt or foreign scrolls are passed over in silence.
  */
-export function listSaves(): SaveGame[] {
-  const vault = join(homedir(), '.gme', 'saves');
+export function listSaves(home?: string): SaveGame[] {
+  const vault = join(vaultHome(home), '.gme', 'saves');
   let scrolls: string[];
   try {
     scrolls = readdirSync(vault).filter((f) => f.endsWith('.json'));
