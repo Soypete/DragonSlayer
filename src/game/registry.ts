@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-import type { GlobalRegistry } from '../types.js';
+import type { GlobalRegistry, PlayerIdentity } from '../types.js';
 
 /** Where the ledger of realms is kept. */
 /**
@@ -85,6 +85,62 @@ export function registerRepo(repoPath: string, home?: string): void {
   if (known.includes(abs)) return;
 
   const next = { ...ledger, version: 1, repos: [...new Set([...known, abs])] };
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify(next, null, 2), 'utf8');
+}
+
+// ── The knight's banner (player identity) ────────────────────────────────────
+
+/** A well-formed banner: a non-empty handle and a registration stamp. */
+function parseIdentity(value: unknown): PlayerIdentity | null {
+  if (value === null || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.githubHandle !== 'string' || v.githubHandle === '') return null;
+  if (typeof v.registeredAt !== 'number') return null;
+  return { githubHandle: v.githubHandle, registeredAt: v.registeredAt };
+}
+
+/**
+ * Read the knight's standing banner from the ledger. Null when none is claimed
+ * (or the field is malformed) — the realm prompts for one when it's needed.
+ */
+export function loadIdentity(home?: string): PlayerIdentity | null {
+  let raw: string;
+  try {
+    raw = readFileSync(registryPath(home), 'utf8');
+  } catch {
+    return null;
+  }
+  const ledger = parseLedger(raw);
+  if (!ledger) return null;
+  return parseIdentity(ledger.identity);
+}
+
+/**
+ * Claim or re-claim the banner: the handle is folded into the ledger without
+ * disturbing the charted realms or any field a steward wrote by hand. The
+ * handle is lowercased so it matches a GitHub author case-blind; the stamp
+ * rides in from the CLI (no clock read here).
+ */
+export function saveIdentity(githubHandle: string, registeredAt: number, home?: string): void {
+  const path = registryPath(home);
+
+  let ledger: Record<string, unknown> = {};
+  try {
+    ledger = parseLedger(readFileSync(path, 'utf8')) ?? {};
+  } catch {
+    // No ledger yet — a fresh one is drawn up below.
+  }
+
+  const known = Array.isArray(ledger.repos)
+    ? ledger.repos.filter((r): r is string => typeof r === 'string').map((r) => resolve(r))
+    : [];
+  const identity: PlayerIdentity = {
+    githubHandle: githubHandle.trim().toLowerCase(),
+    registeredAt,
+  };
+
+  const next = { ...ledger, version: 1, repos: [...new Set(known)], identity };
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(next, null, 2), 'utf8');
 }

@@ -72,7 +72,7 @@ export function App({ config, initialScan, initialSave, hadChronicle, onSwitchRe
 
   const swearNewOath = () => {
     const dragons = buildDragons(scan, dragonName);
-    commit(chronicleScan(newSave(config.repoPath), scan, dragons));
+    commit(chronicleScan(newSave(config.repoPath), scan, dragons, today));
     setScreen('map');
   };
 
@@ -85,7 +85,7 @@ export function App({ config, initialScan, initialSave, hadChronicle, onSwitchRe
     // The spoils path: a same-day BLESSING multiplies battle XP ×1.1 here
     // (blessSpoils), then the battle is banked and any sharpened-blade buff
     // the fight consumed is dulled back to 1.
-    commit(dullBlade(applyBattle(save, dragonId, blessSpoils(result, save.augury, today))));
+    commit(dullBlade(applyBattle(save, dragonId, blessSpoils(result, save.augury, today), today)));
   };
 
   const openForge = (mode: ForgeMode) => {
@@ -202,6 +202,7 @@ export function App({ config, initialScan, initialSave, hadChronicle, onSwitchRe
           config={config}
           mode={forgeMode}
           save={save}
+          today={today}
           onChronicled={adoptChronicle}
           onDone={(won) => setScreen(won ? 'victory' : 'map')}
         />

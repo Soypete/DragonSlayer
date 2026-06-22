@@ -9,6 +9,7 @@ import type {
   BattleResult,
   CampaignEntry,
   Dragon,
+  GoldEntry,
   Quest,
   RepoScan,
   SaveGame,
@@ -19,7 +20,7 @@ import type {
   VimBuffer,
   VimTrial,
 } from '../types.js';
-import { applyScan } from '../game/state.js';
+import { appendGold, applyScan } from '../game/state.js';
 import { generateQuests } from '../game/quests.js';
 import { rankForXp } from '../game/ranks.js';
 import { incantations } from '../typing/snippets.js';
@@ -81,15 +82,35 @@ export function questBountyXp(before: Quest[], after: Quest[]): number {
  * 2. apply the scan (slain bounties, coverage XP, objective refresh),
  * 3. pay out bounties for quests completed by this very scan.
  *
- * Pure — the caller persists the result with writeSave.
+ * `today` (YYYY-MM-DD, from the UI) dates both the slay bounties applyScan
+ * mints and the quest bounty banked here. Pure — the caller persists with writeSave.
  */
-export function chronicleScan(save: SaveGame, scan: RepoScan, dragons: Dragon[]): SaveGame {
+export function chronicleScan(
+  save: SaveGame,
+  scan: RepoScan,
+  dragons: Dragon[],
+  today: string,
+): SaveGame {
   const board = generateQuests(scan, dragons, save.quests);
-  const chronicled = applyScan({ ...save, quests: board }, scan, dragons);
+  const chronicled = applyScan({ ...save, quests: board }, scan, dragons, today);
   const bounty = questBountyXp(save.quests, chronicled.quests);
   if (bounty === 0) return chronicled;
   const xp = chronicled.xp + bounty;
-  return { ...chronicled, xp, gold: chronicled.gold + Math.round(bounty / 10), rank: rankForXp(xp).id };
+  const questGold = Math.round(bounty / 10);
+  return {
+    ...chronicled,
+    xp,
+    gold: chronicled.gold + questGold,
+    goldLedger: appendGold(chronicled.goldLedger, today, questGold, 'quest'),
+    rank: rankForXp(xp).id,
+  };
+}
+
+/** Gold minted on a single day, summed from the ledger. Pure. */
+export function goldEarnedOn(ledger: GoldEntry[] | undefined, date: string): number {
+  return (ledger ?? [])
+    .filter((entry) => entry.date === date)
+    .reduce((sum, entry) => sum + entry.amount, 0);
 }
 
 /**
@@ -172,12 +193,16 @@ export function trialFulfilled(buffer: VimBuffer, goal: TrialGoal): boolean {
   );
 }
 
-/** Strike the full TrialResult from a finished scored attempt. */
+/**
+ * Strike the full TrialResult from a finished scored attempt. `completedAt`
+ * (epoch ms, read in the UI when the run lands) dates it for a speedrun receipt.
+ */
 export function forgeTrialResult(
   trial: VimTrial,
   keystrokes: number,
   hintsUsed: number,
   durationMs: number,
+  completedAt: number,
 ): TrialResult {
   const stars = starsFor(keystrokes, trial.par, hintsUsed);
   return {
@@ -189,6 +214,7 @@ export function forgeTrialResult(
     stars,
     xpEarned: trialXp(stars, trial.tier),
     blade: bladeFor(stars),
+    completedAt,
   };
 }
 

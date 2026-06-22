@@ -223,6 +223,22 @@ export interface OracleProphecy {
 
 // ── Save game ────────────────────────────────────────────────────────────────
 
+/**
+ * One stamped coin-stroke in the daily ledger: gold minted on a given day,
+ * tagged by where it came from. Appended by the gold reducers; the day string
+ * is computed once in the UI (localDay) and threaded in, so the ledger stays
+ * as clock-free as the reducers that write it.
+ */
+export type GoldSource = 'slay' | 'battle' | 'quest';
+
+export interface GoldEntry {
+  /** Local calendar day, YYYY-MM-DD — the shape localDay() emits. */
+  date: string;
+  /** Gold minted in this single event (> 0). */
+  amount: number;
+  source: GoldSource;
+}
+
 export interface PlayerStats {
   battles: number;
   bestWpm: number;
@@ -246,6 +262,12 @@ export interface SaveGame {
   pledges?: string[];
   /** Standing daily augury, if consulted. */
   augury?: Augury;
+  /**
+   * Append-only ledger of gold minted per day, for the daily-haul leaderboard.
+   * Absent on chronicles sealed before the ledger existed — days played before
+   * the upgrade simply report no attributable gold.
+   */
+  goldLedger?: GoldEntry[];
   lastScan?: {
     coveragePct: number;
     timestamp: number;
@@ -255,6 +277,18 @@ export interface SaveGame {
 // ── Global registry (cross-campaign) ─────────────────────────────────────────
 
 /**
+ * Who the knight is, beyond any single realm: a GitHub handle the realm uses
+ * to sign daily-haul and speedrun receipts. Set once, lives in `~/.gme`, never
+ * duplicated into per-realm chronicles (one knight rides many realms).
+ */
+export interface PlayerIdentity {
+  /** GitHub login, lowercased, no leading @. Matched to the receipt's author. */
+  githubHandle: string;
+  /** When the banner was first claimed, epoch ms. Stamped in the CLI layer. */
+  registeredAt: number;
+}
+
+/**
  * The hand-editable ledger of known realms at `~/.gme/config.json`.
  * Stewards may add repo paths by hand; the game registers them on open.
  */
@@ -262,6 +296,8 @@ export interface GlobalRegistry {
   version: 1;
   /** Absolute paths of known realms (target repos). */
   repos: string[];
+  /** The knight's standing banner, once claimed. */
+  identity?: PlayerIdentity;
 }
 
 /** One row in the title-screen campaign picker. */
@@ -363,6 +399,11 @@ export interface TrialResult {
   xpEarned: number;
   /** Sharpened-blade damage multiplier earned for the next typing battle (1..1.5). */
   blade: number;
+  /**
+   * Wall-clock the scored attempt landed, epoch ms — stamped in the UI, used to
+   * date a speedrun receipt. Absent on results forged before the stamp existed.
+   */
+  completedAt?: number;
 }
 
 export interface VimProgress {
@@ -400,6 +441,51 @@ export interface SkillForgeResult {
 }
 
 export type ShopItemId = 'forge-skill' | 'hint-rung' | 'oracle-token' | 'sharpening-stone';
+
+// ── Leaderboard receipt (the cross-realm contract) ───────────────────────────
+
+/** One trial's best showing, as carried by a receipt to the speedrun boards. */
+export interface ReceiptTrial {
+  trialId: string;
+  durationMs: number;
+  keystrokes: number;
+  par: number;
+  stars: 1 | 2 | 3;
+  /** Epoch ms the scored run landed; 0 when the chronicle predates the stamp. */
+  completedAt: number;
+}
+
+/**
+ * A sealed dispatch the knight carries to the leaderboard: one day's gold haul
+ * and the standing speedrun times, signed with a GitHub handle. The `contentHash`
+ * proves the parchment was not altered in transit; it is NOT proof of identity —
+ * the boards confirm authorship by matching `githubHandle` to the submitter.
+ */
+export interface Receipt {
+  schema: 'dragonslayer-receipt/v1';
+  /** The realm's own version, from package.json. */
+  gameVersion: string;
+  /** SaveGame.version the haul was read from. */
+  saveVersion: number;
+  /** GitHub login, lowercased — matched to the PR/gist author at ingest. */
+  githubHandle: string;
+  repo: {
+    /** sha1 of the absolute realm path (the save sigil) — a stable id, no path leak. */
+    sigil: string;
+    /** Optional basename of the realm, opt-in flavor for the boards. */
+    name?: string;
+  };
+  /** The day this dispatch reports, YYYY-MM-DD. */
+  day: string;
+  /** Gold minted on `day`, summed from the ledger. */
+  goldEarnedThatDay: number;
+  /** Best standing showing per trial. */
+  trials: ReceiptTrial[];
+  /** When the dispatch was sealed, epoch ms. */
+  generatedAt: number;
+  /** sha256 hex over a canonical render of every field above this one. */
+  contentHash: string;
+}
 
 // ── Command running ──────────────────────────────────────────────────────────
 

@@ -12,14 +12,45 @@
 
 import React from 'react';
 import { render } from 'ink';
-import { existsSync } from 'node:fs';
-import { parseRepoFlag, suggestRealm } from './ui/cli.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { resolveRepoPath, parseRepoFlag, suggestRealm } from './ui/cli.js';
+import { runLeaderboard } from './ui/cli-leaderboard.js';
 import { musterCampaign } from './ui/muster.js';
 import { Root } from './ui/Root.js';
 
+/** The realm's own version, read from the bundled package.json. */
+function gameVersion(): string {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const raw = readFileSync(join(here, '..', 'package.json'), 'utf8');
+    const pkg = JSON.parse(raw) as { version?: unknown };
+    return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 async function main(): Promise<void> {
   const cwd = process.cwd();
-  const summoned = parseRepoFlag(process.argv.slice(2), cwd);
+  const argv = process.argv.slice(2);
+
+  // The leaderboard road runs outside the Ink banner: read, seal, ride back.
+  if (argv[0] === 'leaderboard') {
+    const code = runLeaderboard({
+      rest: argv.slice(1),
+      defaultRepo: resolveRepoPath(argv, cwd, existsSync),
+      gameVersion: gameVersion(),
+      now: () => new Date(),
+      print: (line) => console.log(line),
+      printErr: (line) => console.error(line),
+    });
+    process.exitCode = code;
+    return;
+  }
+
+  const summoned = parseRepoFlag(argv, cwd);
   const initialCampaign = summoned ? await musterCampaign(summoned) : null;
 
   render(
