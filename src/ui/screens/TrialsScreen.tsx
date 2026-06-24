@@ -135,8 +135,10 @@ export function TrialsScreen({ save, onChronicle, onBack }: TrialsScreenProps) {
     setHintsUsed(hintsUsed + 1);
   };
 
-  const finishScored = (t: VimTrial, keys: string[], durationMs: number) => {
-    const result = forgeTrialResult(t, keys.length, hintsUsed, durationMs);
+  const finishScored = (t: VimTrial, keys: string[], begun: number) => {
+    // One clock-read at the finish: it both ends the duration and dates the run.
+    const completedAt = Date.now();
+    const result = forgeTrialResult(t, keys.length, hintsUsed, completedAt - begun, completedAt);
     setVerdict(result);
     setPlayerKeys(keys);
     onChronicle(chronicleTrial(save, result));
@@ -229,7 +231,7 @@ export function TrialsScreen({ save, onChronicle, onBack }: TrialsScreenProps) {
     if (phase === 'scored') {
       const begun = startedAt ?? Date.now();
       if (startedAt === null) setStartedAt(begun);
-      if (trialFulfilled(b, trial.goal)) finishScored(trial, allKeys, Date.now() - begun);
+      if (trialFulfilled(b, trial.goal)) finishScored(trial, allKeys, begun);
     }
   });
 

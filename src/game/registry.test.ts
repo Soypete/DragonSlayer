@@ -3,7 +3,14 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { loadRegistry, registerRepo, registryPath, withRepo } from './registry.js';
+import {
+  loadIdentity,
+  loadRegistry,
+  registerRepo,
+  registryPath,
+  saveIdentity,
+  withRepo,
+} from './registry.js';
 
 describe('the Realm Registry', () => {
   // Each test gets its own home, passed EXPLICITLY to the registry functions —
@@ -78,6 +85,47 @@ describe('the Realm Registry', () => {
       >;
       expect(ledger.motto).toBe('no untested line');
       expect(ledger.repos).toEqual(['/realm/keep', '/realm/other-keep']);
+    });
+  });
+
+  describe("the knight's banner (identity)", () => {
+    it('yields no banner when none is claimed', () => {
+      expect(loadIdentity(home)).toBeNull();
+    });
+
+    it('claims a banner, lowercasing the handle and keeping the stamp', () => {
+      saveIdentity('OctoCat', 1_700_000_000_000, home);
+      expect(loadIdentity(home)).toEqual({
+        githubHandle: 'octocat',
+        registeredAt: 1_700_000_000_000,
+      });
+    });
+
+    it('claiming a banner never disturbs the charted realms', () => {
+      registerRepo('/realm/keep', home);
+      saveIdentity('octocat', 1, home);
+      expect(loadRegistry(home).repos).toEqual(['/realm/keep']);
+      expect(loadIdentity(home)?.githubHandle).toBe('octocat');
+    });
+
+    it('preserves a steward-written field across a banner claim', () => {
+      mkdirSync(dirname(registryPath(home)), { recursive: true });
+      writeFileSync(
+        registryPath(home),
+        JSON.stringify({ version: 1, repos: [], motto: 'no untested line' })
+      );
+      saveIdentity('octocat', 1, home);
+      const ledger = JSON.parse(readFileSync(registryPath(home), 'utf8')) as Record<string, unknown>;
+      expect(ledger.motto).toBe('no untested line');
+    });
+
+    it('reads a malformed banner as none', () => {
+      mkdirSync(dirname(registryPath(home)), { recursive: true });
+      writeFileSync(
+        registryPath(home),
+        JSON.stringify({ version: 1, repos: [], identity: { githubHandle: '' } })
+      );
+      expect(loadIdentity(home)).toBeNull();
     });
   });
 });

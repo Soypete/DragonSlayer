@@ -15,7 +15,15 @@ import {
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-import type { BattleResult, Dragon, PlayerStats, RepoScan, SaveGame } from '../types.js';
+import type {
+  BattleResult,
+  Dragon,
+  GoldEntry,
+  GoldSource,
+  PlayerStats,
+  RepoScan,
+  SaveGame,
+} from '../types.js';
 import { rankForXp } from './ranks.js';
 import { refreshQuestObjectives } from './quests.js';
 
@@ -36,13 +44,19 @@ function vaultHome(home?: string): string {
 }
 
 /**
+ * The realm's sigil: sha1 of its absolute path. Names the chronicle on disk and
+ * stands in for the realm on a receipt (a stable id that leaks no local path).
+ */
+export function repoSigil(repoPath: string): string {
+  return createHash('sha1').update(resolve(repoPath)).digest('hex');
+}
+
+/**
  * Where this repo's chronicle is kept:
  * `~/.gme/saves/<sha1-of-abs-repo-path>.json`.
  */
 export function savePath(repoPath: string, home?: string): string {
-  const absPath = resolve(repoPath);
-  const sigil = createHash('sha1').update(absPath).digest('hex');
-  return join(vaultHome(home), '.gme', 'saves', `${sigil}.json`);
+  return join(vaultHome(home), '.gme', 'saves', `${repoSigil(repoPath)}.json`);
 }
 
 /**
@@ -136,6 +150,23 @@ export function newSave(repoPath: string): SaveGame {
   };
 }
 
+// ── The daily gold ledger ────────────────────────────────────────────────────
+
+/**
+ * Append one stamped coin-stroke to the ledger, skipping empty mints (a zero
+ * bounty leaves no mark). Pure: the day rides in, never read from a clock.
+ */
+export function appendGold(
+  ledger: GoldEntry[] | undefined,
+  date: string,
+  amount: number,
+  source: GoldSource,
+): GoldEntry[] {
+  const base = ledger ?? [];
+  if (amount <= 0) return base;
+  return [...base, { date, amount, source }];
+}
+
 // ── Reducers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -146,8 +177,17 @@ export function newSave(repoPath: string): SaveGame {
  *   by true coverage: +2×maxHp XP and a gold bounty each.
  * - Coverage gained since the last scan pays +15 XP per +1%.
  * - Quest objectives are re-judged against the new scan.
+ *
+ * `today` (YYYY-MM-DD, computed in the UI) dates the slay bounties in the gold
+ * ledger. It never touches `lastScan.timestamp`, which still rides in on the
+ * scan — the reducer reads no clock.
  */
-export function applyScan(save: SaveGame, scan: RepoScan, dragons: Dragon[]): SaveGame {
+export function applyScan(
+  save: SaveGame,
+  scan: RepoScan,
+  dragons: Dragon[],
+  today: string,
+): SaveGame {
   const priorById = new Map(save.dragons.map((d) => [d.id, d]));
   const freshIds = new Set(dragons.map((d) => d.id));
   const standingFiles = new Set(scan.sourceFiles);
@@ -188,10 +228,18 @@ export function applyScan(save: SaveGame, scan: RepoScan, dragons: Dragon[]): Sa
 
   const xp = save.xp + xpGained;
 
+  // One coin-stroke per fallen dragon, each stamped with today's date — the
+  // ledger remembers the day's slaying even as `gold` keeps only the running sum.
+  let goldLedger = save.goldLedger;
+  for (const _fallen of newlySlain) {
+    goldLedger = appendGold(goldLedger, today, SLAY_GOLD_BOUNTY, 'slay');
+  }
+
   return {
     ...save,
     xp,
     gold: save.gold + goldGained,
+    goldLedger,
     rank: rankForXp(xp).id,
     dragons: roster,
     quests: refreshQuestObjectives(save.quests, scan, roster),
@@ -210,8 +258,15 @@ export function applyScan(save: SaveGame, scan: RepoScan, dragons: Dragon[]): Sa
  * Record a typing battle against one dragon. Typing wounds but never kills:
  * the dragon grows `weakened` (cap 1), and the knight pockets XP plus a
  * sliver of gold shaken loose from its hoard.
+ *
+ * `today` (YYYY-MM-DD, from the UI) dates the looted gold in the ledger.
  */
-export function applyBattle(save: SaveGame, dragonId: string, result: BattleResult): SaveGame {
+export function applyBattle(
+  save: SaveGame,
+  dragonId: string,
+  result: BattleResult,
+  today: string,
+): SaveGame {
   const goldLooted = Math.max(0, Math.round(result.damage / 10));
   const xp = save.xp + Math.max(0, result.xpEarned);
 
@@ -228,6 +283,7 @@ export function applyBattle(save: SaveGame, dragonId: string, result: BattleResu
     ...save,
     xp,
     gold: save.gold + goldLooted,
+    goldLedger: appendGold(save.goldLedger, today, goldLooted, 'battle'),
     rank: rankForXp(xp).id,
     dragons,
     stats: {
