@@ -165,6 +165,27 @@ practice-dungeon/     # agent: practice-dungeon — standalone fixture project
 - Theme in `theme.ts` (colors, HP bar renderer, sigils). Keep components small.
 - Persist save via game/state after every battle and rescan.
 
+### `src/ui/receipt.ts` + `src/ui/cli-leaderboard.ts` (leaderboard courier)
+
+The opt-in bridge to the public boards — the only sanctioned door to the
+outside world, and even it never opens a socket:
+
+- **`ui/receipt.ts`** is pure (all IO injected): `buildReceipt` flattens a
+  save's gold ledger + trial results into a `dragonslayer-receipt/v1`
+  document; `canonicalReceipt`/`hashReceipt` produce the fixed-key-order,
+  whitespace-free render and its sha256 `contentHash`; `verifyReceipt`
+  re-checks a sealed one. The hash is tamper-evidence, not identity — the
+  boards match the GitHub handle against the PR author.
+- **`ui/cli-leaderboard.ts`** is the IO shell, run outside Ink (`gme
+  leaderboard whoami|receipt|trials`). Identity (claimed handle) lives in
+  `~/.gme/config.json` via `game/registry.ts`.
+- **Cross-repo contract:** `canonicalReceipt` is mirrored byte-for-byte in
+  ds-leaderboard (`src/lib/receipt.ts`) and ds-submissions
+  (`scripts/validate-receipt.mjs`). All three repos pin the same golden
+  fixture in their test suites, so drift fails CI. Changing the canonical
+  form **is a schema change**: bump `dragonslayer-receipt/vN` and update all
+  three together. Spec: [docs/LEADERBOARD.md](docs/LEADERBOARD.md).
+
 ### `practice-dungeon/` (practice-dungeon)
 
 Standalone vitest project used to develop/play before pointing at a real repo:

@@ -9,3 +9,6 @@ coverage/
 # mutation testing (Stryker)
 .stryker-tmp/
 reports/
+
+# personal Claude Code permissions
+.claude/settings.local.json

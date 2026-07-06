@@ -1,7 +1,7 @@
 {
   "name": "gme",
   "version": "0.1.0",
-  "description": "Dragonslayer — a terminal RPG where bugs are dragons and reliable code wins the kingdom",
+  "description": "Dragonslayer \u2014 a terminal RPG where bugs are dragons and reliable code wins the kingdom",
   "type": "module",
   "bin": {
     "gme": "dist/index.js"
@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "mutation": "stryker run"
+    "mutation": "stryker run",
+    "test:coverage": "vitest run --coverage"
   },
   "license": "MIT",
   "overrides": {
@@ -30,6 +31,7 @@
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/node": "^25.9.2",
     "@types/react": "^18.3.12",
+    "@vitest/coverage-v8": "^4.1.9",
     "ink-testing-library": "^4.0.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
