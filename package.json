@@ -17,6 +17,9 @@
     "mutation": "stryker run"
   },
   "license": "MIT",
+  "overrides": {
+    "qs": "^6.15.2"
+  },
   "dependencies": {
     "fast-glob": "^3.3.2",
     "ink": "^5.2.1",
