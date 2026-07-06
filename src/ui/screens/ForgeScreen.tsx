@@ -23,6 +23,8 @@ export interface ForgeScreenProps {
   config: GameConfig;
   mode: ForgeMode;
   save: SaveGame;
+  /** Today's local calendar day (YYYY-MM-DD), threaded from the Keep. */
+  today: string;
   /** Fired once the new scan + save are chronicled and persisted. */
   onChronicled: (scan: RepoScan, save: SaveGame) => void;
   /** Leave the forge; `won` routes to the victory hall. */
@@ -41,7 +43,7 @@ interface ForgeReport {
 
 const EMBER_LINES = 14;
 
-export function ForgeScreen({ config, mode, save, onChronicled, onDone }: ForgeScreenProps) {
+export function ForgeScreen({ config, mode, save, today, onChronicled, onDone }: ForgeScreenProps) {
   const command = mode === 'e2e' ? config.e2eCommand : config.coverageCommand;
   const [phase, setPhase] = useState<Phase>(command ? 'kindling' : 'unarmed');
   const [embers, setEmbers] = useState('');
@@ -65,7 +67,7 @@ export function ForgeScreen({ config, mode, save, onChronicled, onDone }: ForgeS
       const scan = await scanRepo(config);
       if (!alive) return;
       const dragons = buildDragons(scan, dragonName);
-      const after = chronicleScan(save, scan, dragons);
+      const after = chronicleScan(save, scan, dragons, today);
       writeSave(after);
       const won = hasWon(after, scan);
       setReport({ run, before: save, after, scan, won });

@@ -12,7 +12,7 @@ import { buildDragons, scanRepo } from '../repo/scanner.js';
 import { dragonName } from '../game/naming.js';
 import { loadSave, newSave, writeSave } from '../game/state.js';
 import { registerRepo } from '../game/registry.js';
-import { chronicleScan } from './logic.js';
+import { chronicleScan, localDay } from './logic.js';
 
 export interface Campaign {
   config: GameConfig;
@@ -29,7 +29,8 @@ export async function musterCampaign(repoPath: string): Promise<Campaign> {
   const dragons = buildDragons(scan, dragonName);
 
   const chronicle = loadSave(config.repoPath);
-  const save = chronicleScan(chronicle ?? newSave(config.repoPath), scan, dragons);
+  // UI layer: the muster reads the wall clock to date this boot's scan-fold.
+  const save = chronicleScan(chronicle ?? newSave(config.repoPath), scan, dragons, localDay(new Date()));
   writeSave(save);
 
   // Chart only realms that truly stand — a typo'd --repo stays off the ledger.

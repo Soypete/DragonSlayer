@@ -37,7 +37,7 @@ const TIER_NAMES: Record<number, string> = {
   1: "The Squire's Footwork · h j k l x",
   2: 'Strides of the Knight · w b e 0 ^ $ gg G, counts',
   3: 'The Cutting Arts · d y p',
-  4: "The Scribe's Arts · i a o, c, esc",
+  4: "The Scribe's Arts · i a o c esc",
   5: 'Strike the Heart · text objects iw i" i( i{ · 3dd · V',
   6: "The Hunter's Arts · f t ; , / n",
   7: 'Advanced Arts · word-change clarity · { } ip ap',
@@ -135,8 +135,10 @@ export function TrialsScreen({ save, onChronicle, onBack }: TrialsScreenProps) {
     setHintsUsed(hintsUsed + 1);
   };
 
-  const finishScored = (t: VimTrial, keys: string[], durationMs: number) => {
-    const result = forgeTrialResult(t, keys.length, hintsUsed, durationMs);
+  const finishScored = (t: VimTrial, keys: string[], begun: number) => {
+    // One clock-read at the finish: it both ends the duration and dates the run.
+    const completedAt = Date.now();
+    const result = forgeTrialResult(t, keys.length, hintsUsed, completedAt - begun, completedAt);
     setVerdict(result);
     setPlayerKeys(keys);
     onChronicle(chronicleTrial(save, result));
@@ -229,7 +231,7 @@ export function TrialsScreen({ save, onChronicle, onBack }: TrialsScreenProps) {
     if (phase === 'scored') {
       const begun = startedAt ?? Date.now();
       if (startedAt === null) setStartedAt(begun);
-      if (trialFulfilled(b, trial.goal)) finishScored(trial, allKeys, Date.now() - begun);
+      if (trialFulfilled(b, trial.goal)) finishScored(trial, allKeys, begun);
     }
   });
 

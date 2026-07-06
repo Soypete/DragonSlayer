@@ -25,6 +25,7 @@ import {
   debriefLine,
   dullBlade,
   forgeTrialResult,
+  goldEarnedOn,
   hintToll,
   musterCampaignEntries,
   musterRoster,
@@ -38,6 +39,9 @@ import {
 } from './logic.js';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
+
+/** A fixed calendar day for stamping the gold ledger in tests. */
+const DAY = '2026-06-20';
 
 function metric(total: number, covered: number) {
   return { total, covered, pct: total === 0 ? 100 : (covered / total) * 100 };
@@ -180,7 +184,7 @@ describe('chronicleScan — folding a scan into the chronicle', () => {
   it('establishes a baseline on the first scan with no coverage XP', () => {
     const save = newSave('/keep/of/greyhollow');
     const scan = scanOf(40);
-    const next = chronicleScan(save, scan, [dragonOf('src/moat.ts', 60)]);
+    const next = chronicleScan(save, scan, [dragonOf('src/moat.ts', 60)], DAY);
     expect(next.lastScan?.coveragePct).toBeCloseTo(40);
     expect(next.dragons).toHaveLength(1);
     expect(next.quests.length).toBeGreaterThan(0);
@@ -189,32 +193,55 @@ describe('chronicleScan — folding a scan into the chronicle', () => {
   it('is pure — the prior save is untouched', () => {
     const save = newSave('/keep/of/greyhollow');
     const frozen = JSON.parse(JSON.stringify(save)) as SaveGame;
-    chronicleScan(save, scanOf(40), [dragonOf('src/moat.ts', 60)]);
+    chronicleScan(save, scanOf(40), [dragonOf('src/moat.ts', 60)], DAY);
     expect(save).toEqual(frozen);
   });
 
-  it('pays quest bounty XP when a scan completes a quest', () => {
+  it('pays quest bounty XP when a scan completes a quest, stamping the ledger', () => {
     const save = newSave('/keep/of/greyhollow');
-    const first = chronicleScan(save, scanOf(40), [dragonOf('src/moat.ts', 60)]);
+    const first = chronicleScan(save, scanOf(40), [dragonOf('src/moat.ts', 60)], DAY);
     const fiftyQuest = first.quests.find((q) => q.id === 'coverage:50');
     expect(fiftyQuest?.status).not.toBe('complete');
 
-    const second = chronicleScan(first, scanOf(60), [dragonOf('src/moat.ts', 40)]);
+    const second = chronicleScan(first, scanOf(60), [dragonOf('src/moat.ts', 40)], DAY);
     const completed = second.quests.find((q) => q.id === 'coverage:50');
     expect(completed?.status).toBe('complete');
     // coverage delta XP (+15/percent * 20) plus the quest bounty.
     expect(second.xp).toBeGreaterThanOrEqual(first.xp + 300 + (completed?.xpReward ?? 0));
     expect(second.rank).toBeDefined();
+    // The quest bounty gold leaves a 'quest'-sourced stroke in the ledger.
+    expect(second.goldLedger?.some((e) => e.source === 'quest' && e.date === DAY)).toBe(true);
   });
 
   it('credits a slain dragon when it vanishes from the fresh roster', () => {
     const save = newSave('/keep/of/greyhollow');
-    const first = chronicleScan(save, scanOf(40), [dragonOf('src/moat.ts', 60)]);
-    const second = chronicleScan(first, scanOf(100), []);
+    const first = chronicleScan(save, scanOf(40), [dragonOf('src/moat.ts', 60)], DAY);
+    const second = chronicleScan(first, scanOf(100), [], DAY);
     const trophy = second.dragons.find((d) => d.id === 'src/moat.ts');
     expect(trophy?.slain).toBe(true);
     expect(trophy?.hp).toBe(0);
     expect(second.gold).toBeGreaterThanOrEqual(first.gold + 50);
+    expect(second.goldLedger?.some((e) => e.source === 'slay' && e.date === DAY)).toBe(true);
+  });
+});
+
+// ── goldEarnedOn ──────────────────────────────────────────────────────────────
+
+describe('goldEarnedOn — the day-haul tally', () => {
+  it('sums only the given day, across sources', () => {
+    const ledger = [
+      { date: '2026-06-19', amount: 5, source: 'battle' as const },
+      { date: DAY, amount: 50, source: 'slay' as const },
+      { date: DAY, amount: 3, source: 'battle' as const },
+      { date: DAY, amount: 15, source: 'quest' as const },
+    ];
+    expect(goldEarnedOn(ledger, DAY)).toBe(68);
+    expect(goldEarnedOn(ledger, '2026-06-19')).toBe(5);
+    expect(goldEarnedOn(ledger, '2026-01-01')).toBe(0);
+  });
+
+  it('reads an absent ledger (old saves) as zero', () => {
+    expect(goldEarnedOn(undefined, DAY)).toBe(0);
   });
 });
 
@@ -333,7 +360,7 @@ describe('forgeTrialResult — striking the verdict', () => {
   const trial = TRIALS[0]!; // tier 1, par 3
 
   it('awards three stars, full XP and the keen blade at par without hints', () => {
-    const result = forgeTrialResult(trial, trial.par, 0, 4_200);
+    const result = forgeTrialResult(trial, trial.par, 0, 4_200, 1_700_000_000_000);
     expect(result).toEqual<TrialResult>({
       trialId: trial.id,
       keystrokes: trial.par,
@@ -343,16 +370,17 @@ describe('forgeTrialResult — striking the verdict', () => {
       stars: 3,
       xpEarned: 30,
       blade: 1.5,
+      completedAt: 1_700_000_000_000,
     });
   });
   it('caps a hinted par run at two stars', () => {
-    const result = forgeTrialResult(trial, trial.par, 1, 1_000);
+    const result = forgeTrialResult(trial, trial.par, 1, 1_000, 0);
     expect(result.stars).toBe(2);
     expect(result.xpEarned).toBe(20);
     expect(result.blade).toBe(1.2);
   });
   it('grants one star for a bloodied finish beyond twice par', () => {
-    const result = forgeTrialResult(trial, trial.par * 2 + 1, 0, 1_000);
+    const result = forgeTrialResult(trial, trial.par * 2 + 1, 0, 1_000, 0);
     expect(result.stars).toBe(1);
     expect(result.xpEarned).toBe(10);
     expect(result.blade).toBe(1.0);
