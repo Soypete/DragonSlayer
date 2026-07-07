@@ -24,13 +24,13 @@
   "dependencies": {
     "fast-glob": "^3.3.2",
     "ink": "^5.2.1",
-    "react": "^18.3.1"
+    "react": "^19.2.7"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/node": "^26.1.0",
-    "@types/react": "^18.3.12",
+    "@types/react": "^19.2.17",
     "@vitest/coverage-v8": "^4.1.10",
     "ink-testing-library": "^4.0.0",
     "tsx": "^4.23.0",
