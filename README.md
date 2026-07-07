@@ -11,8 +11,12 @@ running real coverage at the Forge. Win the realm by reaching 100% line coverage
 with a passing end-to-end suite.
 
 Built with TypeScript + [Ink](https://github.com/vadimdemedes/ink) (React for
-the terminal — the same rendering stack Claude Code uses). Everything runs
-locally: no accounts, no network, no telemetry.
+the terminal — the same rendering stack Claude Code uses). Gameplay runs fully
+locally: no telemetry, no background network calls, no accounts inside the
+game. The one optional door to the outside world is the leaderboard courier —
+`gme leaderboard receipt` writes a sealed JSON file to disk, and *you* choose
+whether to publish it by opening a pull request (see
+[The Boards](#the-boards)). The game itself never phones home.
 
 Made with **Claude (Fable 5)** in Claude Code — a game built to sharpen your
 typing speed, vim motions, and code-reading skills while making real codebases
@@ -242,6 +246,17 @@ campaign, delete its file (or pick "Swear a new oath" on the title screen).
 The loaders tolerate missing or corrupt files, so hand-editing either file is
 safe-ish — and yes, that means you can give yourself gold; the Oracle sees all
 and judges silently.
+
+## The Boards
+
+Optional, opt-in public leaderboards for daily gold hauls and vim-trial
+speedruns. The game's part is entirely local: `gme leaderboard` seals a
+tamper-evident receipt file, and publishing it is a pull request you open
+yourself against the [ds-submissions](https://github.com/Soypete/ds-submissions)
+repo — that README is the canonical how-to-submit. The CLI, the receipt
+schema, and the contentHash spec are documented in
+[docs/LEADERBOARD.md](docs/LEADERBOARD.md); the boards themselves live at
+[ds-leaderboard](https://github.com/Soypete/ds-leaderboard).
 
 Architecture notes live in [ARCHITECTURE.md](ARCHITECTURE.md): pure modules
 (`src/game`, `src/repo`, `src/typing`, `src/ai`, `src/vim`) that only share

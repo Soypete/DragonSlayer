@@ -10,8 +10,8 @@
  *   gme leaderboard trials --json
  */
 
-import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 import type { VimTrial } from '../types.js';
 import { loadIdentity, saveIdentity } from '../game/registry.js';
@@ -186,8 +186,10 @@ export function runLeaderboard(deps: LeaderboardDeps): number {
       });
       const json = JSON.stringify(receipt, null, 2);
       if (command.out !== undefined) {
-        writeFileSync(resolve(command.out), json, 'utf8');
-        deps.print(`Receipt sealed → ${resolve(command.out)}`);
+        const outPath = resolve(command.out);
+        mkdirSync(dirname(outPath), { recursive: true });
+        writeFileSync(outPath, json, 'utf8');
+        deps.print(`Receipt sealed → ${outPath}`);
       } else {
         deps.print(json);
       }

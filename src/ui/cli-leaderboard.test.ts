@@ -159,6 +159,15 @@ describe('runLeaderboard (IO, sandboxed)', () => {
     expect(out.join('\n')).toContain(file);
   });
 
+  it('forges missing directories on the way to --out', () => {
+    saveIdentity('octocat', 1, home);
+    writeSave(newSave('/realm/keep'), home);
+    const file = join(home, 'receipts', 'nested', 'octocat-2026-06-20.json');
+    expect(runLeaderboard(deps(['receipt', '--repo', '/realm/keep', '--out', file]))).toBe(0);
+    const receipt = JSON.parse(readFileSync(file, 'utf8')) as Receipt;
+    expect(verifyReceipt(receipt)).toBe(true);
+  });
+
   it('prints help on a bare invocation and errors on the unknown', () => {
     expect(runLeaderboard(deps([]))).toBe(0);
     expect(out.join('\n')).toBe(HELP_TEXT);

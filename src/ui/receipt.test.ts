@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
-import type { SaveGame, TrialResult } from '../types.js';
+import type { Receipt, SaveGame, TrialResult } from '../types.js';
 import { newSave } from '../game/state.js';
 import { buildReceipt, canonicalReceipt, hashReceipt, verifyReceipt } from './receipt.js';
 
@@ -96,6 +98,23 @@ describe('hashReceipt / verifyReceipt — the seal', () => {
     });
     expect(verifyReceipt({ ...receipt, goldEarnedThatDay: 9_999 })).toBe(false);
     expect(verifyReceipt({ ...receipt, githubHandle: 'impostor' })).toBe(false);
+  });
+
+  it('golden receipt hashes to the pinned digest (cross-repo wire-format lock)', () => {
+    // The same fixture + digest are pinned in ds-leaderboard
+    // (src/lib/receipt.test.ts) and ds-submissions
+    // (scripts/validate-receipt.test.mjs). If this fails you changed the wire
+    // format: bump dragonslayer-receipt/vN and update both mirrors —
+    // ds-leaderboard/src/lib/receipt.ts and
+    // ds-submissions/scripts/validate-receipt.mjs — in the same coordinated
+    // change. See docs/LEADERBOARD.md.
+    const golden = JSON.parse(
+      readFileSync(new URL('./__fixtures__/golden-receipt.json', import.meta.url), 'utf8'),
+    ) as Receipt;
+    const { contentHash, ...rest } = golden;
+    expect(contentHash).toBe('172759319a063fbd7912a5dfeb33258929102650e3d54e7c8a6581ac0e91efa0');
+    expect(hashReceipt(rest)).toBe(contentHash);
+    expect(verifyReceipt(golden)).toBe(true);
   });
 
   it('hashes over canonical bytes, independent of field order', () => {

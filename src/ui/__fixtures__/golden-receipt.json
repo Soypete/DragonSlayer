@@ -1,0 +1,56 @@
+{
+  "schema": "dragonslayer-receipt/v1",
+  "gameVersion": "0.1.0",
+  "saveVersion": 1,
+  "githubHandle": "dragonlord",
+  "repo": {
+    "sigil": "def456789012345678901234567890abcdef123",
+    "name": "enterprise-app"
+  },
+  "day": "2026-06-30",
+  "goldEarnedThatDay": 225,
+  "trials": [
+    {
+      "trialId": "t1-strike-the-rune",
+      "durationMs": 600,
+      "keystrokes": 2,
+      "par": 2,
+      "stars": 3,
+      "completedAt": 1751241600000
+    },
+    {
+      "trialId": "t2-words-heart",
+      "durationMs": 1800,
+      "keystrokes": 3,
+      "par": 3,
+      "stars": 3,
+      "completedAt": 1751242000000
+    },
+    {
+      "trialId": "t3-echo-the-incantation",
+      "durationMs": 3200,
+      "keystrokes": 5,
+      "par": 5,
+      "stars": 3,
+      "completedAt": 1751242500000
+    },
+    {
+      "trialId": "t4-leap-the-chasm",
+      "durationMs": 5500,
+      "keystrokes": 8,
+      "par": 6,
+      "stars": 2,
+      "completedAt": 1751243000000
+    },
+    {
+      "trialId": "t5-mark-the-realm",
+      "durationMs": 7200,
+      "keystrokes": 12,
+      "par": 10,
+      "stars": 2,
+      "completedAt": 1751243500000
+    }
+  ],
+  "generatedAt": 1782500000000,
+  "contentHash": "172759319a063fbd7912a5dfeb33258929102650e3d54e7c8a6581ac0e91efa0"
+}

@@ -38,10 +38,14 @@ complaints, playtest notes, and tutorial gaps are all first-class quests.
 3. **Pure logic stays pure.** No `Math.random()`, no clock reads inside
    reducers or generators — seeds and timestamps come in as parameters.
    Deterministic functions are why saves stay stable and tests stay honest.
-4. **Everything stays local.** No telemetry, no network calls, no auth. The
-   only subprocesses are the player's configured test commands and the
-   optional local `claude` CLI. PRs adding network dependencies will be
-   turned away at the drawbridge.
+4. **Everything stays local by default.** No telemetry, no background network
+   calls, no auth inside the game. The only subprocesses are the player's
+   configured test commands and the optional local `claude` CLI. The one
+   sanctioned door to the outside world is the leaderboard courier
+   (`gme leaderboard receipt`, see [docs/LEADERBOARD.md](docs/LEADERBOARD.md))
+   — and even it only writes a file; publishing is a pull request the player
+   opens themselves. PRs adding any other network dependency will be turned
+   away at the drawbridge.
 5. **ESM discipline.** `"type": "module"` with NodeNext resolution — relative
    imports use `.js` extensions even in `.ts` files.
 6. **Flavor is part of the spec.** Player-facing strings live in the fantasy
