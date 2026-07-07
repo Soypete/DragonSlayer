@@ -8,6 +8,15 @@ in the [ds-submissions README](https://github.com/Soypete/ds-submissions#readme)
 Everything here runs locally. The courier writes a file; it never opens a
 network connection. Publishing a receipt is a pull request you open yourself.
 
+These are shell commands, run *outside* the game — quit (or open a second
+terminal) before summoning the courier. Running from a clone via npm, the bare
+`--` separator is mandatory or npm eats your flags and `--set` silently
+vanishes:
+
+```bash
+npm start -- leaderboard whoami --set octocat
+```
+
 ## The CLI
 
 ```
@@ -19,14 +28,15 @@ gme leaderboard — carry your haul to the boards
   trials --json             dump the trial catalog (id, tier, title, par)
 ```
 
-- **`whoami --set <handle>`** claims your banner: the GitHub handle
-  (lowercased, leading `@` stripped) is stored with a `registeredAt` stamp in
+- **`whoami --set <handle>`** claims your banner: the bare GitHub handle —
+  `octocat`, not `@octocat` or a profile URL — lowercased (a leading `@` is
+  forgiven and stripped) and stored with a `registeredAt` stamp in
   `~/.gme/config.json` alongside the realm registry (`src/game/registry.ts`).
-  Receipts can't be sealed without it.
+  Claim it once; receipts can't be sealed without it.
 - **`receipt`** seals the given day's haul (default: today) for the given
   realm (default: the one the courier rode in from) — the day's gold from the
-  save's gold ledger plus your standing trial results. `--out` writes a file,
-  `--stdout` prints it.
+  save's gold ledger plus your standing trial results. `--out` writes a file
+  (forging any missing directories on the way), `--stdout` prints it.
 - **`trials --json`** dumps the trial catalog; the leaderboard's
   `/api/sync-trials` uses this to refresh its board list.
 
