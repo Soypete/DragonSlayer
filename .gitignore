@@ -12,3 +12,6 @@ reports/
 
 # personal Claude Code permissions
 .claude/settings.local.json
+
+# sealed receipts live in ds-submissions, not here
+receipts/

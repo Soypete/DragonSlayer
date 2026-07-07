@@ -46,6 +46,24 @@ function hasFlag(args: string[], name: string): boolean {
   return args.some((a) => a === name || a.startsWith(`${name}=`));
 }
 
+/** Positional args left over once every `--flag value` pair is accounted for. */
+function strayArgs(args: string[], valueFlags: string[]): string[] {
+  return args.filter((a, i) => !a.startsWith('--') && !valueFlags.includes(args[i - 1] ?? ''));
+}
+
+/**
+ * npm strips unknown `--flags` from `npm start leaderboard whoami --set foo`
+ * and hands the game `whoami foo` — the rider it left behind is the tell.
+ * Naming the cure here breaks the loop where the error tells the player to
+ * use the very flag npm keeps eating.
+ */
+function strayArgError(sub: string, stray: string): LeaderboardCommand {
+  return {
+    kind: 'error',
+    message: `unexpected argument '${stray}' — riding through npm? The bare -- matters: npm start -- leaderboard ${sub} …`,
+  };
+}
+
 /**
  * Parse the argv tail AFTER `leaderboard` (so `argv.slice(3)` from process).
  * Pure — returns a command the runner then carries out.
@@ -56,6 +74,8 @@ export function parseLeaderboardArgs(rest: string[]): LeaderboardCommand {
 
   switch (sub) {
     case 'whoami': {
+      const stray = strayArgs(args, ['--set']);
+      if (stray.length > 0) return strayArgError('whoami', stray[0]!);
       const set = flagValue(args, '--set');
       if (hasFlag(args, '--set') && set === null) {
         return { kind: 'error', message: '--set needs a GitHub handle, e.g. --set octocat' };
@@ -63,6 +83,8 @@ export function parseLeaderboardArgs(rest: string[]): LeaderboardCommand {
       return set === null ? { kind: 'whoami' } : { kind: 'whoami', set };
     }
     case 'receipt': {
+      const stray = strayArgs(args, ['--repo', '--day', '--out']);
+      if (stray.length > 0) return strayArgError('receipt', stray[0]!);
       return {
         kind: 'receipt',
         repo: flagValue(args, '--repo') ?? undefined,
