@@ -31,9 +31,9 @@
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/node": "^25.9.2",
     "@types/react": "^18.3.12",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.10",
     "ink-testing-library": "^4.0.0",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   }
