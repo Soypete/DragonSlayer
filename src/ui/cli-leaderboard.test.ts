@@ -32,6 +32,19 @@ describe('parseLeaderboardArgs (pure)', () => {
     expect(parseLeaderboardArgs(['whoami', '--set'])).toMatchObject({ kind: 'error' });
   });
 
+  it('names the npm cure when a flag got eaten (whoami soypete)', () => {
+    const cmd = parseLeaderboardArgs(['whoami', 'soypete']);
+    expect(cmd).toMatchObject({ kind: 'error' });
+    expect((cmd as { message: string }).message).toContain('npm start -- leaderboard whoami');
+  });
+
+  it('names the npm cure for a stray receipt argument, but not for flag values', () => {
+    const cmd = parseLeaderboardArgs(['receipt', 'f.json']);
+    expect(cmd).toMatchObject({ kind: 'error' });
+    expect((cmd as { message: string }).message).toContain('npm start -- leaderboard receipt');
+    expect(parseLeaderboardArgs(['receipt', '--out', 'f.json'])).toMatchObject({ kind: 'receipt' });
+  });
+
   it('reads receipt flags, with --stdout overriding --out', () => {
     expect(parseLeaderboardArgs(['receipt', '--repo', '/r', '--day', '2026-06-20', '--out', 'f.json'])).toEqual({
       kind: 'receipt',
