@@ -19,7 +19,7 @@
   },
   "license": "MIT",
   "overrides": {
-    "qs": "^6.15.2"
+    "qs": "^6.17.0"
   },
   "dependencies": {
     "fast-glob": "^3.3.2",
